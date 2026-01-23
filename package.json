@@ -32,12 +32,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hookbase/hookbase.git",
-    "directory": "mcp-server"
+    "url": "https://github.com/HookbaseApp/mcp-server.git"
   },
   "homepage": "https://hookbase.app",
   "bugs": {
-    "url": "https://github.com/hookbase/hookbase/issues"
+    "url": "https://github.com/HookbaseApp/mcp-server/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
