@@ -1,0 +1,53 @@
+{
+  "name": "@hookbase/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Hookbase webhook relay API - manage webhooks, deliveries, and tunnels from AI assistants",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "hookbase-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "hookbase",
+    "webhooks",
+    "ai",
+    "claude",
+    "anthropic"
+  ],
+  "author": "Hookbase",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hookbase/hookbase.git",
+    "directory": "mcp-server"
+  },
+  "homepage": "https://hookbase.app",
+  "bugs": {
+    "url": "https://github.com/hookbase/hookbase/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
