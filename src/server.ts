@@ -15,6 +15,10 @@ import { deliveryTools } from './tools/deliveries.js';
 import { tunnelTools } from './tools/tunnels.js';
 import { cronTools } from './tools/cron.js';
 import { analyticsTools } from './tools/analytics.js';
+import { outboundTools } from './tools/outbound.js';
+import { eventTypeTools } from './tools/outbound-event-types.js';
+import { outboundMessageTools } from './tools/outbound-messages.js';
+import { hookbasePrompts } from './prompts/index.js';
 
 /**
  * Create and configure the MCP server
@@ -42,6 +46,10 @@ export async function createServer(): Promise<McpServer> {
     ...tunnelTools,
     ...cronTools,
     ...analyticsTools,
+    // Outbound webhooks
+    ...outboundTools,
+    ...eventTypeTools,
+    ...outboundMessageTools,
   ];
 
   // Register each tool
@@ -75,6 +83,19 @@ export async function createServer(): Promise<McpServer> {
             isError: true,
           };
         }
+      }
+    );
+  }
+
+  // Register prompts to help AI assistants understand capabilities
+  for (const prompt of hookbasePrompts) {
+    server.prompt(
+      prompt.name,
+      prompt.description,
+      prompt.argsSchema.shape,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (args: any) => {
+        return prompt.getPrompt(args);
       }
     );
   }

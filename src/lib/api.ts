@@ -564,3 +564,514 @@ export interface DashboardAnalytics {
 export async function getDashboardAnalytics(range: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<ApiResponse<DashboardAnalytics>> {
   return request<DashboardAnalytics>('GET', orgPath(`/analytics/dashboard?range=${range}`));
 }
+
+// ============================================================================
+// Webhook Applications (Outbound)
+// ============================================================================
+
+export interface WebhookApplication {
+  id: string;
+  organizationId: string;
+  externalId?: string | null;
+  name: string;
+  metadata?: Record<string, unknown> | null;
+  rateLimitPerSecond?: number;
+  rateLimitPerMinute?: number;
+  rateLimitPerHour?: number;
+  isDisabled: boolean | number;
+  disabledAt?: string | null;
+  disabledReason?: string | null;
+  totalEndpoints?: number;
+  totalMessagesSent?: number;
+  totalMessagesFailed?: number;
+  lastEventAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  endpointCount?: number;
+}
+
+export interface WebhookApplicationListResponse {
+  data: WebhookApplication[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export async function getWebhookApplications(options?: {
+  search?: string;
+  isDisabled?: boolean;
+  limit?: number;
+  cursor?: string;
+}): Promise<ApiResponse<WebhookApplicationListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.search) params.set('search', options.search);
+  if (options?.isDisabled !== undefined) params.set('isDisabled', String(options.isDisabled));
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.cursor) params.set('cursor', options.cursor);
+
+  const queryString = params.toString();
+  return request<WebhookApplicationListResponse>(
+    'GET',
+    orgPath(`/webhook-applications${queryString ? `?${queryString}` : ''}`)
+  );
+}
+
+export async function getWebhookApplication(appId: string): Promise<ApiResponse<{ data: WebhookApplication }>> {
+  return request<{ data: WebhookApplication }>('GET', orgPath(`/webhook-applications/${appId}`));
+}
+
+export async function createWebhookApplication(data: {
+  name: string;
+  externalId?: string;
+  metadata?: Record<string, unknown>;
+  rateLimitPerSecond?: number;
+  rateLimitPerMinute?: number;
+  rateLimitPerHour?: number;
+}): Promise<ApiResponse<{ data: WebhookApplication }>> {
+  return request<{ data: WebhookApplication }>('POST', orgPath('/webhook-applications'), data);
+}
+
+export async function updateWebhookApplication(
+  appId: string,
+  data: {
+    name?: string;
+    metadata?: Record<string, unknown>;
+    rateLimitPerSecond?: number;
+    rateLimitPerMinute?: number;
+    rateLimitPerHour?: number;
+    isDisabled?: boolean;
+    disabledReason?: string;
+  }
+): Promise<ApiResponse<{ data: WebhookApplication }>> {
+  return request<{ data: WebhookApplication }>('PATCH', orgPath(`/webhook-applications/${appId}`), data);
+}
+
+export async function deleteWebhookApplication(appId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/webhook-applications/${appId}`));
+}
+
+// ============================================================================
+// Webhook Endpoints (Outbound)
+// ============================================================================
+
+export interface WebhookEndpoint {
+  id: string;
+  applicationId: string;
+  url: string;
+  description?: string | null;
+  secretPrefix?: string;
+  hasSecret?: boolean;
+  secret?: string; // Only returned on creation
+  secretVersion?: number;
+  headers?: Array<{ name: string; value: string }>;
+  timeoutSeconds?: number;
+  isDisabled: boolean | number;
+  disabledAt?: string | null;
+  disabledReason?: string | null;
+  circuitState?: 'closed' | 'open' | 'half_open';
+  circuitOpenedAt?: string | null;
+  circuitFailureCount?: number;
+  circuitFailureThreshold?: number;
+  circuitSuccessThreshold?: number;
+  circuitCooldownSeconds?: number;
+  totalMessages?: number;
+  totalSuccesses?: number;
+  totalFailures?: number;
+  avgResponseTimeMs?: number;
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
+  lastResponseStatus?: number | null;
+  isVerified?: boolean | number;
+  verifiedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  subscriptionCount?: number;
+}
+
+export interface WebhookEndpointListResponse {
+  data: WebhookEndpoint[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export async function getWebhookEndpoints(options?: {
+  applicationId?: string;
+  isDisabled?: boolean;
+  circuitState?: 'closed' | 'open' | 'half_open';
+  limit?: number;
+  cursor?: string;
+}): Promise<ApiResponse<WebhookEndpointListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.applicationId) params.set('applicationId', options.applicationId);
+  if (options?.isDisabled !== undefined) params.set('isDisabled', String(options.isDisabled));
+  if (options?.circuitState) params.set('circuitState', options.circuitState);
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.cursor) params.set('cursor', options.cursor);
+
+  const queryString = params.toString();
+  return request<WebhookEndpointListResponse>(
+    'GET',
+    orgPath(`/webhook-endpoints${queryString ? `?${queryString}` : ''}`)
+  );
+}
+
+export async function getWebhookEndpoint(endpointId: string): Promise<ApiResponse<{ data: WebhookEndpoint }>> {
+  return request<{ data: WebhookEndpoint }>('GET', orgPath(`/webhook-endpoints/${endpointId}`));
+}
+
+export async function createWebhookEndpoint(data: {
+  applicationId: string;
+  url: string;
+  description?: string;
+  headers?: Array<{ name: string; value: string }>;
+  timeoutSeconds?: number;
+  circuitFailureThreshold?: number;
+  circuitSuccessThreshold?: number;
+  circuitCooldownSeconds?: number;
+}): Promise<ApiResponse<{ data: WebhookEndpoint; warning: string }>> {
+  return request<{ data: WebhookEndpoint; warning: string }>('POST', orgPath('/webhook-endpoints'), data);
+}
+
+export async function updateWebhookEndpoint(
+  endpointId: string,
+  data: {
+    url?: string;
+    description?: string | null;
+    headers?: Array<{ name: string; value: string }>;
+    timeoutSeconds?: number;
+    isDisabled?: boolean;
+    disabledReason?: string;
+    circuitFailureThreshold?: number;
+    circuitSuccessThreshold?: number;
+    circuitCooldownSeconds?: number;
+  }
+): Promise<ApiResponse<{ data: WebhookEndpoint }>> {
+  return request<{ data: WebhookEndpoint }>('PATCH', orgPath(`/webhook-endpoints/${endpointId}`), data);
+}
+
+export async function deleteWebhookEndpoint(endpointId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/webhook-endpoints/${endpointId}`));
+}
+
+export async function rotateWebhookEndpointSecret(
+  endpointId: string,
+  gracePeriodSeconds?: number
+): Promise<ApiResponse<{ secret: string; previousSecretExpiresAt: string; secretVersion: number }>> {
+  return request<{ secret: string; previousSecretExpiresAt: string; secretVersion: number }>(
+    'POST',
+    orgPath(`/webhook-endpoints/${endpointId}/rotate-secret`),
+    gracePeriodSeconds !== undefined ? { gracePeriodSeconds } : {}
+  );
+}
+
+export async function resetWebhookEndpointCircuit(
+  endpointId: string
+): Promise<ApiResponse<{ success: boolean; circuitState: string }>> {
+  return request<{ success: boolean; circuitState: string }>(
+    'POST',
+    orgPath(`/webhook-endpoints/${endpointId}/reset-circuit`)
+  );
+}
+
+// ============================================================================
+// Webhook Subscriptions (Outbound)
+// ============================================================================
+
+export interface WebhookSubscription {
+  id: string;
+  endpointId: string;
+  eventTypeId: string;
+  filterExpression?: string | null;
+  labelFilters?: string | null;
+  labelFilterMode?: 'all' | 'any' | null;
+  transformId?: string | null;
+  isEnabled: boolean | number;
+  createdAt?: string;
+  createdBy?: string | null;
+  // Related data (when joined)
+  endpointUrl?: string;
+  eventTypeName?: string;
+  eventTypeDisplayName?: string;
+  applicationId?: string;
+  applicationName?: string;
+  endpoint?: { id: string; url: string };
+  eventType?: { id: string; name: string; displayName?: string | null };
+  application?: { id: string; name: string };
+}
+
+export interface WebhookSubscriptionListResponse {
+  data: WebhookSubscription[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export async function getWebhookSubscriptions(options?: {
+  endpointId?: string;
+  eventTypeId?: string;
+  applicationId?: string;
+  isEnabled?: boolean;
+  limit?: number;
+  cursor?: string;
+}): Promise<ApiResponse<WebhookSubscriptionListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.endpointId) params.set('endpointId', options.endpointId);
+  if (options?.eventTypeId) params.set('eventTypeId', options.eventTypeId);
+  if (options?.applicationId) params.set('applicationId', options.applicationId);
+  if (options?.isEnabled !== undefined) params.set('isEnabled', String(options.isEnabled));
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.cursor) params.set('cursor', options.cursor);
+
+  const queryString = params.toString();
+  return request<WebhookSubscriptionListResponse>(
+    'GET',
+    orgPath(`/webhook-subscriptions${queryString ? `?${queryString}` : ''}`)
+  );
+}
+
+export async function getWebhookSubscription(
+  subscriptionId: string
+): Promise<ApiResponse<{ data: WebhookSubscription }>> {
+  return request<{ data: WebhookSubscription }>('GET', orgPath(`/webhook-subscriptions/${subscriptionId}`));
+}
+
+export async function createWebhookSubscription(data: {
+  endpointId: string;
+  eventTypeId: string;
+  filterExpression?: string;
+  labelFilters?: Record<string, string | string[]>;
+  labelFilterMode?: 'all' | 'any';
+  transformId?: string;
+  isEnabled?: boolean;
+}): Promise<ApiResponse<{ data: WebhookSubscription }>> {
+  return request<{ data: WebhookSubscription }>('POST', orgPath('/webhook-subscriptions'), data);
+}
+
+export async function updateWebhookSubscription(
+  subscriptionId: string,
+  data: {
+    filterExpression?: string | null;
+    labelFilters?: Record<string, string | string[]> | null;
+    labelFilterMode?: 'all' | 'any' | null;
+    transformId?: string | null;
+    isEnabled?: boolean;
+  }
+): Promise<ApiResponse<{ data: WebhookSubscription }>> {
+  return request<{ data: WebhookSubscription }>('PATCH', orgPath(`/webhook-subscriptions/${subscriptionId}`), data);
+}
+
+export async function deleteWebhookSubscription(subscriptionId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/webhook-subscriptions/${subscriptionId}`));
+}
+
+// ============================================================================
+// Event Types (Outbound)
+// ============================================================================
+
+export interface EventType {
+  id: string;
+  organizationId: string;
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  schema?: string | null;
+  schemaVersion?: number;
+  examplePayload?: string | null;
+  documentationUrl?: string | null;
+  isEnabled: boolean | number;
+  isDeprecated?: boolean | number;
+  deprecatedAt?: string | null;
+  deprecatedMessage?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  subscriptionCount?: number;
+}
+
+export interface EventTypeListResponse {
+  data: EventType[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export async function getEventTypes(options?: {
+  category?: string;
+  isEnabled?: boolean;
+  search?: string;
+  limit?: number;
+  cursor?: string;
+}): Promise<ApiResponse<EventTypeListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.category) params.set('category', options.category);
+  if (options?.isEnabled !== undefined) params.set('isEnabled', String(options.isEnabled));
+  if (options?.search) params.set('search', options.search);
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.cursor) params.set('cursor', options.cursor);
+
+  const queryString = params.toString();
+  return request<EventTypeListResponse>(
+    'GET',
+    orgPath(`/event-types${queryString ? `?${queryString}` : ''}`)
+  );
+}
+
+export async function getEventType(eventTypeId: string): Promise<ApiResponse<{ data: EventType }>> {
+  return request<{ data: EventType }>('GET', orgPath(`/event-types/${eventTypeId}`));
+}
+
+export async function createEventType(data: {
+  name: string;
+  displayName?: string;
+  description?: string;
+  category?: string;
+  schema?: string;
+  examplePayload?: string;
+  documentationUrl?: string;
+  isEnabled?: boolean;
+}): Promise<ApiResponse<{ data: EventType }>> {
+  return request<{ data: EventType }>('POST', orgPath('/event-types'), data);
+}
+
+export async function updateEventType(
+  eventTypeId: string,
+  data: {
+    displayName?: string;
+    description?: string;
+    category?: string | null;
+    schema?: string | null;
+    examplePayload?: string | null;
+    documentationUrl?: string | null;
+    isEnabled?: boolean;
+    isDeprecated?: boolean;
+    deprecatedMessage?: string;
+  }
+): Promise<ApiResponse<{ data: EventType }>> {
+  return request<{ data: EventType }>('PATCH', orgPath(`/event-types/${eventTypeId}`), data);
+}
+
+export async function deleteEventType(eventTypeId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/event-types/${eventTypeId}`));
+}
+
+// ============================================================================
+// Send Event (Outbound)
+// ============================================================================
+
+export interface SendEventResult {
+  eventId: string;
+  messagesQueued: number;
+  endpoints: Array<{ id: string; url: string }>;
+}
+
+export async function sendOutboundEvent(data: {
+  eventType: string;
+  payload: unknown;
+  applicationId?: string;
+  endpointId?: string;
+  idempotencyKey?: string;
+  labels?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+}): Promise<ApiResponse<{ data: SendEventResult }>> {
+  return request<{ data: SendEventResult }>('POST', orgPath('/send-event'), data);
+}
+
+// ============================================================================
+// Outbound Messages
+// ============================================================================
+
+export interface OutboundMessage {
+  id: string;
+  eventId: string;
+  eventType: string;
+  applicationId: string;
+  endpointId: string;
+  status: 'pending' | 'processing' | 'success' | 'failed' | 'exhausted';
+  attempts: number;
+  maxAttempts: number;
+  lastResponseStatus?: number | null;
+  lastErrorMessage?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+  endpointUrl?: string;
+  endpointDescription?: string;
+  applicationName?: string;
+}
+
+export interface OutboundAttempt {
+  id: string;
+  messageId: string;
+  attemptNumber: number;
+  status: 'success' | 'failed';
+  responseStatus?: number | null;
+  responseTimeMs?: number | null;
+  responseBody?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+}
+
+export interface OutboundMessageListResponse {
+  data: OutboundMessage[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export interface OutboundStats {
+  pending: number;
+  processing: number;
+  success: number;
+  failed: number;
+  exhausted: number;
+  total: number;
+}
+
+export async function getOutboundMessages(options?: {
+  status?: 'pending' | 'processing' | 'success' | 'failed' | 'exhausted';
+  eventType?: string;
+  applicationId?: string;
+  endpointId?: string;
+  limit?: number;
+  cursor?: string;
+}): Promise<ApiResponse<OutboundMessageListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set('status', options.status);
+  if (options?.eventType) params.set('eventType', options.eventType);
+  if (options?.applicationId) params.set('applicationId', options.applicationId);
+  if (options?.endpointId) params.set('endpointId', options.endpointId);
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.cursor) params.set('cursor', options.cursor);
+
+  const queryString = params.toString();
+  return request<OutboundMessageListResponse>(
+    'GET',
+    orgPath(`/outbound-messages${queryString ? `?${queryString}` : ''}`)
+  );
+}
+
+export async function getOutboundMessage(messageId: string): Promise<ApiResponse<{ data: OutboundMessage }>> {
+  return request<{ data: OutboundMessage }>('GET', orgPath(`/outbound-messages/${messageId}`));
+}
+
+export async function getOutboundMessageAttempts(messageId: string): Promise<ApiResponse<{ data: OutboundAttempt[] }>> {
+  return request<{ data: OutboundAttempt[] }>('GET', orgPath(`/outbound-messages/${messageId}/attempts`));
+}
+
+export async function replayOutboundMessage(
+  messageId: string
+): Promise<ApiResponse<{ data: { originalMessageId: string; newMessageId: string; status: string } }>> {
+  return request<{ data: { originalMessageId: string; newMessageId: string; status: string } }>(
+    'POST',
+    orgPath(`/outbound-messages/${messageId}/replay`)
+  );
+}
+
+export async function getOutboundStats(): Promise<ApiResponse<{ data: OutboundStats }>> {
+  return request<{ data: OutboundStats }>('GET', orgPath('/outbound-messages/stats/summary'));
+}
