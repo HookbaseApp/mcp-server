@@ -22,6 +22,7 @@ export const sourceTools = [
           slug: s.slug,
           provider: s.provider,
           isActive: s.is_active === 1,
+          transientMode: s.transientMode ?? s.transient_mode === 1,
           eventCount: s.event_count ?? s.eventCount ?? 0,
           routeCount: s.route_count ?? s.routeCount ?? 0,
           createdAt: s.created_at,
@@ -52,6 +53,7 @@ export const sourceTools = [
           rejectInvalidSignatures: s.reject_invalid_signatures,
           rateLimitPerMinute: s.rate_limit_per_minute,
           isActive: s.is_active === 1,
+          transientMode: s.transientMode ?? s.transient_mode === 1,
           eventCount: s.event_count ?? s.eventCount ?? 0,
           routeCount: s.route_count ?? s.routeCount ?? 0,
           createdAt: s.created_at,
@@ -69,6 +71,7 @@ export const sourceTools = [
       description: z.string().optional().describe('Optional description of the source'),
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject webhooks with invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute (rate limiting)'),
+      transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance). Disables replay and payload viewing.'),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -77,11 +80,13 @@ export const sourceTools = [
       description?: string;
       reject_invalid_signatures?: boolean;
       rate_limit_per_minute?: number;
+      transient_mode?: boolean;
     }) => {
       const result = await api.createSource(args.name, args.slug, args.provider, {
         description: args.description,
         rejectInvalidSignatures: args.reject_invalid_signatures,
         rateLimitPerMinute: args.rate_limit_per_minute,
+        transientMode: args.transient_mode,
       });
       if (result.error) {
         return { error: result.error };
@@ -110,6 +115,7 @@ export const sourceTools = [
       provider: z.string().optional().describe('Update webhook provider'),
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute'),
+      transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance)'),
     }).strict(),
     handler: async (args: {
       source_id: string;
@@ -119,6 +125,7 @@ export const sourceTools = [
       provider?: string;
       reject_invalid_signatures?: boolean;
       rate_limit_per_minute?: number;
+      transient_mode?: boolean;
     }) => {
       const result = await api.updateSource(args.source_id, {
         name: args.name,
@@ -127,6 +134,7 @@ export const sourceTools = [
         provider: args.provider,
         rejectInvalidSignatures: args.reject_invalid_signatures,
         rateLimitPerMinute: args.rate_limit_per_minute,
+        transientMode: args.transient_mode,
       });
       if (result.error) {
         return { error: result.error };

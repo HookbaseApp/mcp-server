@@ -78,6 +78,8 @@ export interface Source {
   event_count?: number;
   routeCount?: number;
   route_count?: number;
+  transientMode?: boolean;
+  transient_mode?: number;
   created_at?: string;
 }
 
@@ -97,6 +99,7 @@ export async function createSource(
     description?: string;
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
+    transientMode?: boolean;
   }
 ): Promise<ApiResponse<{ source: Source }>> {
   const body: Record<string, unknown> = {
@@ -105,6 +108,7 @@ export async function createSource(
     description: options?.description,
     rejectInvalidSignatures: options?.rejectInvalidSignatures,
     rateLimitPerMinute: options?.rateLimitPerMinute,
+    transientMode: options?.transientMode,
   };
 
   if (provider && provider.length > 0) {
@@ -123,6 +127,7 @@ export async function updateSource(
     isActive?: boolean;
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
+    transientMode?: boolean;
   }
 ): Promise<ApiResponse<{ source: Source }>> {
   return request<{ source: Source }>('PATCH', orgPath(`/sources/${sourceId}`), data);
