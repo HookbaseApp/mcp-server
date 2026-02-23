@@ -20,6 +20,7 @@ export const destinationTools = [
           id: d.id,
           name: d.name,
           slug: d.slug,
+          type: d.type || 'http',
           url: d.url,
           method: d.method,
           authType: d.auth_type,
@@ -49,6 +50,7 @@ export const destinationTools = [
           id: d.id,
           name: d.name,
           slug: d.slug,
+          type: d.type || 'http',
           url: d.url,
           method: d.method,
           headers: d.headers,
@@ -58,6 +60,8 @@ export const destinationTools = [
           rateLimitPerMinute: d.rate_limit_per_minute,
           mockMode: d.mock_mode,
           isActive: d.is_active === 1,
+          config: d.config || null,
+          fieldMapping: d.field_mapping || null,
           deliveryCount: d.delivery_count ?? 0,
           successCount: d.success_count ?? 0,
           failureCount: d.failure_count ?? 0,
@@ -68,29 +72,41 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_create_destination',
-    description: 'Create a new webhook destination. Destinations are endpoints where webhooks are forwarded after processing.',
+    description: 'Create a new webhook destination. Destinations can be HTTP endpoints or warehouse storage (S3, R2, GCS, Azure Blob).',
     inputSchema: z.object({
       name: z.string().describe('Display name for the destination'),
-      url: z.string().url().describe('The URL to forward webhooks to'),
-      method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST)'),
-      headers: z.record(z.string()).optional().describe('Custom headers to include in requests'),
-      auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type (default: none)'),
+      type: z.enum(['http', 's3', 'r2', 'gcs', 'azure_blob']).optional().describe('Destination type (default: http). Use warehouse types for storage destinations.'),
+      url: z.string().optional().describe('The URL to forward webhooks to (required for http type)'),
+      method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST, only for http type)'),
+      headers: z.record(z.string()).optional().describe('Custom headers to include in requests (only for http type)'),
+      auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type (default: none, only for http type)'),
       auth_config: z.record(z.string()).optional().describe('Auth configuration (username/password for basic, token for bearer, etc.)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
       rate_limit_per_minute: z.number().optional().describe('Maximum requests per minute'),
+      config: z.record(z.any()).optional().describe('Warehouse configuration object. For S3: {bucket, region, accessKeyId, secretAccessKey, prefix?, fileFormat?, partitionBy?}. For R2: {bucket, prefix?, fileFormat?, partitionBy?}. For GCS: {bucket, projectId, serviceAccountKey, prefix?, fileFormat?, partitionBy?}. For Azure Blob: {accountName, accountKey, containerName, prefix?, fileFormat?, partitionBy?}.'),
+      field_mapping: z.array(z.object({
+        source: z.string().describe('Source field path in the webhook payload'),
+        target: z.string().describe('Target field name in the warehouse'),
+        type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
+        default: z.string().optional().describe('Default value if source field is missing'),
+      })).optional().describe('Field mappings for warehouse destinations'),
     }).strict(),
     handler: async (args: {
       name: string;
-      url: string;
+      type?: 'http' | 's3' | 'r2' | 'gcs' | 'azure_blob';
+      url?: string;
       method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       headers?: Record<string, string>;
       auth_type?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
       auth_config?: Record<string, string>;
       timeout_ms?: number;
       rate_limit_per_minute?: number;
+      config?: Record<string, any>;
+      field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
     }) => {
       const result = await api.createDestination({
         name: args.name,
+        type: args.type,
         url: args.url,
         method: args.method,
         headers: args.headers,
@@ -98,6 +114,8 @@ export const destinationTools = [
         authConfig: args.auth_config,
         timeoutMs: args.timeout_ms,
         rateLimitPerMinute: args.rate_limit_per_minute,
+        config: args.config,
+        fieldMapping: args.field_mapping,
       });
       if (result.error) {
         return { error: result.error };
@@ -109,6 +127,7 @@ export const destinationTools = [
           id: d.id,
           name: d.name,
           slug: d.slug,
+          type: d.type,
           url: d.url,
         } : null,
       };
@@ -120,7 +139,7 @@ export const destinationTools = [
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to update'),
       name: z.string().optional().describe('New display name'),
-      url: z.string().url().optional().describe('New URL'),
+      url: z.string().optional().describe('New URL (for http type destinations)'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method'),
       headers: z.record(z.string()).optional().describe('Custom headers'),
       auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type'),
@@ -128,6 +147,13 @@ export const destinationTools = [
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds'),
       rate_limit_per_minute: z.number().optional().describe('Maximum requests per minute'),
       is_active: z.boolean().optional().describe('Enable or disable the destination'),
+      config: z.record(z.any()).optional().describe('Warehouse configuration object (for warehouse type destinations)'),
+      field_mapping: z.array(z.object({
+        source: z.string().describe('Source field path in the webhook payload'),
+        target: z.string().describe('Target field name in the warehouse'),
+        type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
+        default: z.string().optional().describe('Default value if source field is missing'),
+      })).optional().describe('Field mappings for warehouse destinations'),
     }).strict(),
     handler: async (args: {
       destination_id: string;
@@ -140,6 +166,8 @@ export const destinationTools = [
       timeout_ms?: number;
       rate_limit_per_minute?: number;
       is_active?: boolean;
+      config?: Record<string, any>;
+      field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
     }) => {
       const result = await api.updateDestination(args.destination_id, {
         name: args.name,
@@ -151,6 +179,8 @@ export const destinationTools = [
         timeoutMs: args.timeout_ms,
         rateLimitPerMinute: args.rate_limit_per_minute,
         isActive: args.is_active,
+        config: args.config,
+        fieldMapping: args.field_mapping,
       });
       if (result.error) {
         return { error: result.error };

@@ -145,6 +145,7 @@ export interface Destination {
   id: string;
   name: string;
   slug: string;
+  type?: 'http' | 's3' | 'r2' | 'gcs' | 'azure_blob';
   url: string;
   method: string;
   headers?: Record<string, string>;
@@ -154,6 +155,8 @@ export interface Destination {
   rate_limit_per_minute?: number;
   mock_mode?: boolean;
   is_active: number;
+  config?: Record<string, any>;
+  field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
   delivery_count?: number;
   success_count?: number;
   failure_count?: number;
@@ -171,26 +174,33 @@ export async function getDestination(destId: string): Promise<ApiResponse<{ dest
 export async function createDestination(data: {
   name: string;
   slug?: string;
-  url: string;
+  type?: 'http' | 's3' | 'r2' | 'gcs' | 'azure_blob';
+  url?: string;
   method?: string;
   headers?: Record<string, string>;
   authType?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
   authConfig?: Record<string, string>;
   timeoutMs?: number;
   rateLimitPerMinute?: number;
+  config?: Record<string, any>;
+  fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
 }): Promise<ApiResponse<{ destination: Destination }>> {
   const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const destType = data.type || 'http';
 
   return request<{ destination: Destination }>('POST', orgPath('/destinations'), {
     name: data.name,
     slug: slug,
+    type: destType,
     url: data.url,
-    method: data.method || 'POST',
+    method: data.method || (destType === 'http' ? 'POST' : undefined),
     headers: data.headers,
-    authType: data.authType || 'none',
+    authType: data.authType || (destType === 'http' ? 'none' : undefined),
     authConfig: data.authConfig,
     timeoutMs: data.timeoutMs || 30000,
     rateLimitPerMinute: data.rateLimitPerMinute,
+    config: data.config,
+    fieldMapping: data.fieldMapping,
   });
 }
 
@@ -206,6 +216,8 @@ export async function updateDestination(
     timeoutMs?: number;
     rateLimitPerMinute?: number;
     isActive?: boolean;
+    config?: Record<string, any>;
+    fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
   }
 ): Promise<ApiResponse<{ destination: Destination }>> {
   return request<{ destination: Destination }>('PATCH', orgPath(`/destinations/${destId}`), data);
