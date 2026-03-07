@@ -184,6 +184,9 @@ export async function createDestination(data: {
   rateLimitPerMinute?: number;
   config?: Record<string, any>;
   fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
+  useStaticIp?: boolean;
+  batchSize?: number;
+  batchWindowSeconds?: number;
 }): Promise<ApiResponse<{ destination: Destination }>> {
   const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const destType = data.type || 'http';
@@ -201,6 +204,9 @@ export async function createDestination(data: {
     rateLimitPerMinute: data.rateLimitPerMinute,
     config: data.config,
     fieldMapping: data.fieldMapping,
+    useStaticIp: data.useStaticIp,
+    batchSize: data.batchSize,
+    batchWindowSeconds: data.batchWindowSeconds,
   });
 }
 
@@ -218,6 +224,9 @@ export async function updateDestination(
     isActive?: boolean;
     config?: Record<string, any>;
     fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
+    useStaticIp?: boolean;
+    batchSize?: number;
+    batchWindowSeconds?: number;
   }
 ): Promise<ApiResponse<{ destination: Destination }>> {
   return request<{ destination: Destination }>('PATCH', orgPath(`/destinations/${destId}`), data);

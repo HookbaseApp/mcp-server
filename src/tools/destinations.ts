@@ -90,6 +90,9 @@ export const destinationTools = [
         type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
         default: z.string().optional().describe('Default value if source field is missing'),
       })).optional().describe('Field mappings for warehouse destinations'),
+      use_static_ip: z.boolean().optional().describe('Enable static IP delivery (Pro and Business plans)'),
+      batch_size: z.number().optional().describe('Number of events to accumulate before flushing to warehouse (warehouse destinations only)'),
+      batch_window_seconds: z.number().optional().describe('Max seconds to wait before flushing a batch to warehouse (warehouse destinations only)'),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -103,6 +106,9 @@ export const destinationTools = [
       rate_limit_per_minute?: number;
       config?: Record<string, any>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
+      use_static_ip?: boolean;
+      batch_size?: number;
+      batch_window_seconds?: number;
     }) => {
       const result = await api.createDestination({
         name: args.name,
@@ -116,6 +122,9 @@ export const destinationTools = [
         rateLimitPerMinute: args.rate_limit_per_minute,
         config: args.config,
         fieldMapping: args.field_mapping,
+        useStaticIp: args.use_static_ip,
+        batchSize: args.batch_size,
+        batchWindowSeconds: args.batch_window_seconds,
       });
       if (result.error) {
         return { error: result.error };
@@ -154,6 +163,9 @@ export const destinationTools = [
         type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
         default: z.string().optional().describe('Default value if source field is missing'),
       })).optional().describe('Field mappings for warehouse destinations'),
+      use_static_ip: z.boolean().optional().describe('Enable static IP delivery (Pro and Business plans)'),
+      batch_size: z.number().optional().describe('Number of events to accumulate before flushing to warehouse (warehouse destinations only)'),
+      batch_window_seconds: z.number().optional().describe('Max seconds to wait before flushing a batch to warehouse (warehouse destinations only)'),
     }).strict(),
     handler: async (args: {
       destination_id: string;
@@ -168,6 +180,9 @@ export const destinationTools = [
       is_active?: boolean;
       config?: Record<string, any>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
+      use_static_ip?: boolean;
+      batch_size?: number;
+      batch_window_seconds?: number;
     }) => {
       const result = await api.updateDestination(args.destination_id, {
         name: args.name,
@@ -181,6 +196,9 @@ export const destinationTools = [
         isActive: args.is_active,
         config: args.config,
         fieldMapping: args.field_mapping,
+        useStaticIp: args.use_static_ip,
+        batchSize: args.batch_size,
+        batchWindowSeconds: args.batch_window_seconds,
       });
       if (result.error) {
         return { error: result.error };
