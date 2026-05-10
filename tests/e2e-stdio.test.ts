@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,8 +40,16 @@ function notify(method: string, params: Record<string, unknown> = {}) {
 }
 
 beforeAll(async () => {
-  // Verify build artifact exists
-  await fs.access(serverPath);
+  // Ensure build artifact exists (CI runs `npm test` before `npm run build`)
+  try {
+    await fs.access(serverPath);
+  } catch {
+    const result = spawnSync('npx', ['tsc'], {
+      cwd: path.resolve(__dirname, '..'),
+      stdio: 'inherit',
+    });
+    if (result.status !== 0) throw new Error('tsc build failed in e2e test setup');
+  }
 
   // Pre-seed the config cache so initConfig() skips the network /auth/me call
   xdgDir = await fs.mkdtemp(path.join(tmpdir(), 'hookbase-mcp-e2e-'));
