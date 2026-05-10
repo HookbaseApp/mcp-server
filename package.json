@@ -1,6 +1,6 @@
 {
   "name": "@hookbase/mcp-server",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "MCP server for Hookbase webhook relay API - manage webhooks, deliveries, and tunnels from AI assistants",
   "type": "module",
   "main": "dist/index.js",
@@ -17,7 +17,10 @@
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "inspect": "npm run build && npx -y @modelcontextprotocol/inspector node dist/index.js",
+    "smoke": "npm run build && node scripts/smoke.mjs"
   },
   "keywords": [
     "mcp",
@@ -39,14 +42,18 @@
     "url": "https://github.com/HookbaseApp/mcp-server/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "zod": "^3.24.1"
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.0",
-    "typescript": "^5.7.0"
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^6.0.0",
+    "vitest": "^3.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

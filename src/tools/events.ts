@@ -125,9 +125,9 @@ export const eventTools = [
         return { error: 'Source not found' };
       }
 
-      // Build cURL command
-      const ingestUrl = `${config.apiUrl}/ingest/${source.slug}`;
-      let curlCmd = `curl -X ${e.method || 'POST'} '${ingestUrl}'`;
+      // Build cURL command. Ingest route is POST /ingest/:orgSlug/:sourceSlug.
+      const ingestUrl = `${config.apiUrl}/ingest/${config.orgSlug}/${source.slug}`;
+      let curlCmd = `curl -X POST '${ingestUrl}'`;
 
       // Add headers
       if (e.headers) {

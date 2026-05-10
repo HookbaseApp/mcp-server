@@ -474,6 +474,10 @@ export async function createTunnel(name: string, subdomain?: string): Promise<Ap
   });
 }
 
+export async function getTunnel(tunnelId: string): Promise<ApiResponse<{ tunnel: Tunnel }>> {
+  return request<{ tunnel: Tunnel }>('GET', orgPath(`/tunnels/${tunnelId}`));
+}
+
 export async function getTunnelStatus(tunnelId: string): Promise<ApiResponse<{ tunnel: Tunnel; liveStatus: unknown }>> {
   return request<{ tunnel: Tunnel; liveStatus: unknown }>('GET', orgPath(`/tunnels/${tunnelId}/status`));
 }
@@ -543,12 +547,205 @@ export async function createCronJob(data: {
   });
 }
 
+export async function getCronJob(jobId: string): Promise<ApiResponse<{ cronJob: CronJob }>> {
+  return request<{ cronJob: CronJob }>('GET', orgPath(`/cron/${jobId}`));
+}
+
+export async function updateCronJob(
+  jobId: string,
+  data: {
+    name?: string;
+    description?: string;
+    cronExpression?: string;
+    timezone?: string;
+    url?: string;
+    method?: string;
+    headers?: Record<string, string>;
+    payload?: string;
+    timeoutMs?: number;
+    isActive?: boolean;
+    notifyOnFailure?: boolean;
+    notifyOnSuccess?: boolean;
+    notifyEmails?: string;
+    groupId?: string | null;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PATCH', orgPath(`/cron/${jobId}`), data);
+}
+
 export async function deleteCronJob(jobId: string): Promise<ApiResponse<{ success: boolean }>> {
   return request<{ success: boolean }>('DELETE', orgPath(`/cron/${jobId}`));
 }
 
 export async function triggerCronJob(jobId: string): Promise<ApiResponse<{ execution: CronTriggerResult }>> {
   return request<{ execution: CronTriggerResult }>('POST', orgPath(`/cron/${jobId}/trigger`));
+}
+
+// ============================================================================
+// Cron Groups
+// ============================================================================
+
+export interface CronGroup {
+  id: string;
+  organization_id?: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sort_order: number;
+  is_collapsed: boolean;
+  job_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCronGroups(): Promise<ApiResponse<{ groups: CronGroup[] }>> {
+  return request<{ groups: CronGroup[] }>('GET', orgPath('/cron-groups'));
+}
+
+export async function getCronGroup(groupId: string): Promise<ApiResponse<{ group: CronGroup }>> {
+  return request<{ group: CronGroup }>('GET', orgPath(`/cron-groups/${groupId}`));
+}
+
+export async function createCronGroup(data: {
+  name: string;
+  description?: string;
+}): Promise<ApiResponse<{ group: CronGroup }>> {
+  return request<{ group: CronGroup }>('POST', orgPath('/cron-groups'), data);
+}
+
+export async function updateCronGroup(
+  groupId: string,
+  data: {
+    name?: string;
+    description?: string;
+    sortOrder?: number;
+    isCollapsed?: boolean;
+  }
+): Promise<ApiResponse<{ group: CronGroup }>> {
+  return request<{ group: CronGroup }>('PATCH', orgPath(`/cron-groups/${groupId}`), data);
+}
+
+export async function deleteCronGroup(groupId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/cron-groups/${groupId}`));
+}
+
+// ============================================================================
+// Alert Rules
+// ============================================================================
+
+export type AlertTriggerType =
+  | 'source_silence'
+  | 'failure_rate'
+  | 'latency_threshold'
+  | 'volume_spike'
+  | 'volume_drop'
+  | 'anomaly_volume'
+  | 'schema_drift';
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  triggerType: AlertTriggerType | string;
+  triggerConfig: Record<string, unknown>;
+  notificationChannels: string[];
+  channelConfig?: { cooldownMinutes?: number };
+  isActive: boolean;
+  lastTriggeredAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function getAlertRules(): Promise<ApiResponse<{ rules: AlertRule[] }>> {
+  return request<{ rules: AlertRule[] }>('GET', orgPath('/alert-rules'));
+}
+
+export async function getAlertRule(ruleId: string): Promise<ApiResponse<{ rule: AlertRule }>> {
+  return request<{ rule: AlertRule }>('GET', orgPath(`/alert-rules/${ruleId}`));
+}
+
+export async function createAlertRule(data: {
+  name: string;
+  triggerType: AlertTriggerType | string;
+  triggerConfig: Record<string, unknown>;
+  notificationChannels: string[];
+  cooldownMinutes?: number;
+}): Promise<ApiResponse<{ rule: AlertRule }>> {
+  return request<{ rule: AlertRule }>('POST', orgPath('/alert-rules'), data);
+}
+
+export async function updateAlertRule(
+  ruleId: string,
+  data: {
+    name?: string;
+    triggerConfig?: Record<string, unknown>;
+    notificationChannels?: string[];
+    cooldownMinutes?: number;
+    isActive?: boolean;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PATCH', orgPath(`/alert-rules/${ruleId}`), data);
+}
+
+export async function deleteAlertRule(ruleId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/alert-rules/${ruleId}`));
+}
+
+export async function testAlertRule(
+  ruleId: string
+): Promise<ApiResponse<{ success: boolean; result?: unknown }>> {
+  return request<{ success: boolean; result?: unknown }>('POST', orgPath(`/alert-rules/${ruleId}/test`));
+}
+
+// ============================================================================
+// Notification Channels
+// ============================================================================
+
+export type NotificationChannelType = 'email' | 'slack' | 'webhook' | 'teams' | 'pagerduty' | 'discord';
+
+export interface NotificationChannel {
+  id: string;
+  organizationId?: string;
+  name: string;
+  type: NotificationChannelType | string;
+  config: Record<string, unknown>;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function getNotificationChannels(): Promise<ApiResponse<{ channels: NotificationChannel[] }>> {
+  return request<{ channels: NotificationChannel[] }>('GET', orgPath('/notification-channels'));
+}
+
+export async function getNotificationChannel(
+  channelId: string
+): Promise<ApiResponse<{ channel: NotificationChannel }>> {
+  return request<{ channel: NotificationChannel }>('GET', orgPath(`/notification-channels/${channelId}`));
+}
+
+export async function createNotificationChannel(data: {
+  name: string;
+  type: NotificationChannelType;
+  config: Record<string, unknown>;
+}): Promise<ApiResponse<{ channel: NotificationChannel }>> {
+  return request<{ channel: NotificationChannel }>('POST', orgPath('/notification-channels'), data);
+}
+
+export async function updateNotificationChannel(
+  channelId: string,
+  data: {
+    name?: string;
+    config?: Record<string, unknown>;
+    isActive?: boolean;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PATCH', orgPath(`/notification-channels/${channelId}`), data);
+}
+
+export async function deleteNotificationChannel(
+  channelId: string
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/notification-channels/${channelId}`));
 }
 
 // ============================================================================
@@ -589,6 +786,241 @@ export interface DashboardAnalytics {
 
 export async function getDashboardAnalytics(range: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<ApiResponse<DashboardAnalytics>> {
   return request<DashboardAnalytics>('GET', orgPath(`/analytics/dashboard?range=${range}`));
+}
+
+// ============================================================================
+// Filters
+// ============================================================================
+
+export interface Filter {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  conditions?: unknown;
+  logic?: 'AND' | 'OR';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type FilterOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'exists'
+  | 'not_exists'
+  | 'greater_than'
+  | 'less_than'
+  | 'regex';
+
+export interface FilterListResponse {
+  filters: Filter[];
+  pagination: { total: number; page: number; pageSize: number };
+}
+
+export async function getFilters(options?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<FilterListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.page) params.set('page', String(options.page));
+  if (options?.pageSize) params.set('pageSize', String(options.pageSize));
+  const qs = params.toString();
+  return request<FilterListResponse>('GET', orgPath(`/filters${qs ? `?${qs}` : ''}`));
+}
+
+export async function getFilter(filterId: string): Promise<ApiResponse<{ filter: Filter }>> {
+  return request<{ filter: Filter }>('GET', orgPath(`/filters/${filterId}`));
+}
+
+export async function createFilter(data: {
+  name: string;
+  description?: string;
+  slug?: string;
+  conditions: Array<{ field: string; operator: FilterOperator; value?: unknown }>;
+  logic?: 'AND' | 'OR';
+}): Promise<ApiResponse<{ filter: Filter }>> {
+  return request<{ filter: Filter }>('POST', orgPath('/filters'), {
+    name: data.name,
+    description: data.description,
+    slug: data.slug,
+    conditions: data.conditions,
+    logic: data.logic || 'AND',
+  });
+}
+
+export async function updateFilter(
+  filterId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    conditions?: Array<{ field: string; operator: FilterOperator; value?: unknown }>;
+    logic?: 'AND' | 'OR';
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PATCH', orgPath(`/filters/${filterId}`), data);
+}
+
+export async function deleteFilter(filterId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/filters/${filterId}`));
+}
+
+// ============================================================================
+// Transforms
+// ============================================================================
+
+export type TransformType = 'jsonata' | 'xslt' | 'liquid' | 'javascript';
+export type ContentFormat = 'json' | 'xml' | 'text';
+
+export interface Transform {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  code?: string;
+  transformType?: TransformType;
+  transform_type?: TransformType;
+  inputFormat?: ContentFormat;
+  input_format?: ContentFormat;
+  outputFormat?: ContentFormat;
+  output_format?: ContentFormat;
+  isActive?: boolean | number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TransformListResponse {
+  transforms: Transform[];
+  pagination: { total: number; page: number; pageSize: number };
+}
+
+export async function getTransforms(options?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<TransformListResponse>> {
+  const params = new URLSearchParams();
+  if (options?.page) params.set('page', String(options.page));
+  if (options?.pageSize) params.set('pageSize', String(options.pageSize));
+  const qs = params.toString();
+  return request<TransformListResponse>('GET', orgPath(`/transforms${qs ? `?${qs}` : ''}`));
+}
+
+export async function getTransform(transformId: string): Promise<ApiResponse<{ transform: Transform }>> {
+  return request<{ transform: Transform }>('GET', orgPath(`/transforms/${transformId}`));
+}
+
+export async function createTransform(data: {
+  name: string;
+  slug?: string;
+  description?: string;
+  code: string;
+  transformType?: TransformType;
+  inputFormat?: ContentFormat;
+  outputFormat?: ContentFormat;
+}): Promise<ApiResponse<{ transform: Transform }>> {
+  return request<{ transform: Transform }>('POST', orgPath('/transforms'), {
+    name: data.name,
+    slug: data.slug,
+    description: data.description,
+    code: data.code,
+    transformType: data.transformType || 'jsonata',
+    inputFormat: data.inputFormat || 'json',
+    outputFormat: data.outputFormat || 'json',
+  });
+}
+
+export async function updateTransform(
+  transformId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    code?: string;
+    transformType?: TransformType;
+    inputFormat?: ContentFormat;
+    outputFormat?: ContentFormat;
+    isActive?: boolean;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PATCH', orgPath(`/transforms/${transformId}`), data);
+}
+
+export async function deleteTransform(transformId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/transforms/${transformId}`));
+}
+
+export async function testTransform(data: {
+  code: string;
+  payload: unknown;
+  transformType?: TransformType;
+  inputFormat?: ContentFormat;
+  outputFormat?: ContentFormat;
+}): Promise<ApiResponse<{ success: boolean; output?: unknown; error?: string }>> {
+  return request<{ success: boolean; output?: unknown; error?: string }>('POST', orgPath('/transforms/test'), {
+    code: data.code,
+    payload: data.payload,
+    transformType: data.transformType || 'jsonata',
+    inputFormat: data.inputFormat || 'json',
+    outputFormat: data.outputFormat || 'json',
+  });
+}
+
+// ============================================================================
+// Schemas
+// ============================================================================
+
+export interface Schema {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  jsonSchema?: unknown;
+  json_schema?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function getSchemas(): Promise<ApiResponse<{ schemas: Schema[] }>> {
+  return request<{ schemas: Schema[] }>('GET', orgPath('/schemas'));
+}
+
+export async function getSchema(schemaId: string): Promise<ApiResponse<{ schema: Schema }>> {
+  return request<{ schema: Schema }>('GET', orgPath(`/schemas/${schemaId}`));
+}
+
+export async function createSchema(data: {
+  name: string;
+  description?: string;
+  jsonSchema: Record<string, unknown>;
+}): Promise<ApiResponse<{ schema: Schema }>> {
+  return request<{ schema: Schema }>('POST', orgPath('/schemas'), data);
+}
+
+export async function updateSchema(
+  schemaId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    jsonSchema?: Record<string, unknown>;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('PUT', orgPath(`/schemas/${schemaId}`), data);
+}
+
+export async function deleteSchema(schemaId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/schemas/${schemaId}`));
+}
+
+export async function validateAgainstSchema(
+  schemaId: string,
+  payload: unknown
+): Promise<ApiResponse<{ valid: boolean; errors?: unknown[] }>> {
+  return request<{ valid: boolean; errors?: unknown[] }>(
+    'POST',
+    orgPath(`/schemas/${schemaId}/validate`),
+    { payload: payload as Record<string, unknown> }
+  );
 }
 
 // ============================================================================
@@ -1100,4 +1532,351 @@ export async function replayOutboundMessage(
 
 export async function getOutboundStats(): Promise<ApiResponse<{ data: OutboundStats }>> {
   return request<{ data: OutboundStats }>('GET', orgPath('/outbound-messages/stats/summary'));
+}
+
+// ============================================================================
+// Audit logs (read-only)
+// ============================================================================
+
+export interface AuditLogEntry {
+  id: string;
+  organizationId: string;
+  userId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details: unknown;
+  ipAddress: string | null;
+  createdAt: string;
+  userName: string | null;
+  userEmail: string | null;
+}
+
+export async function getAuditLogs(options?: {
+  limit?: number;
+  offset?: number;
+  action?: string;
+  entityType?: string;
+  userId?: string;
+}): Promise<ApiResponse<{ logs: AuditLogEntry[]; total: number; limit: number; offset: number }>> {
+  const params = new URLSearchParams();
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.offset) params.set('offset', String(options.offset));
+  if (options?.action) params.set('action', options.action);
+  if (options?.entityType) params.set('entityType', options.entityType);
+  if (options?.userId) params.set('userId', options.userId);
+  const qs = params.toString();
+  return request('GET', orgPath(`/audit-logs${qs ? `?${qs}` : ''}`));
+}
+
+export async function getAuditLogActions(): Promise<ApiResponse<{ actions: string[] }>> {
+  return request('GET', orgPath('/audit-logs/actions'));
+}
+
+export async function getAuditLogUsers(): Promise<
+  ApiResponse<{ users: Array<{ id: string; name: string; email: string }> }>
+> {
+  return request('GET', orgPath('/audit-logs/users'));
+}
+
+// ============================================================================
+// API keys
+// ============================================================================
+
+export type ApiKeyScope = 'read' | 'write' | 'delete';
+
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: ApiKeyScope[];
+  expiresAt: string | null;
+  lastUsedAt?: string | null;
+  createdAt?: string;
+}
+
+export async function getApiKeys(): Promise<ApiResponse<{ apiKeys: ApiKeySummary[] }>> {
+  return request('GET', orgPath('/api-keys'));
+}
+
+export async function createApiKey(data: {
+  name: string;
+  scopes?: ApiKeyScope[];
+  expiresIn?: number;
+}): Promise<ApiResponse<{ apiKey: ApiKeySummary & { key: string } }>> {
+  return request('POST', orgPath('/api-keys'), data as unknown as Record<string, unknown>);
+}
+
+export async function deleteApiKey(keyId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request('DELETE', orgPath(`/api-keys/${keyId}`));
+}
+
+// ============================================================================
+// Redaction policies
+// ============================================================================
+
+export type RedactionMatchType = 'path' | 'field_name' | 'regex_value' | 'header';
+export type RedactionActionType = 'redact' | 'mask' | 'hash' | 'remove';
+export type RedactionScope = 'storage' | 'delivery' | 'both';
+
+export interface RedactionRule {
+  match: { type: RedactionMatchType; value: string; flags?: string };
+  action: { type: RedactionActionType; keepLastN?: number };
+}
+
+export interface RedactionPolicy {
+  id: string;
+  organizationId: string;
+  sourceId: string | null;
+  name: string;
+  rules: RedactionRule[];
+  scope: RedactionScope;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getRedactionPolicies(
+  sourceId?: string
+): Promise<ApiResponse<{ policies: RedactionPolicy[] }>> {
+  const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : '';
+  return request('GET', orgPath(`/redaction-policies${qs}`));
+}
+
+export async function getRedactionPolicy(
+  policyId: string
+): Promise<ApiResponse<{ policy: RedactionPolicy }>> {
+  return request('GET', orgPath(`/redaction-policies/${policyId}`));
+}
+
+export async function createRedactionPolicy(data: {
+  name: string;
+  sourceId?: string | null;
+  rules: RedactionRule[];
+  scope?: RedactionScope;
+}): Promise<ApiResponse<{ id: string }>> {
+  return request('POST', orgPath('/redaction-policies'), data as unknown as Record<string, unknown>);
+}
+
+export async function updateRedactionPolicy(
+  policyId: string,
+  data: {
+    name: string;
+    sourceId?: string | null;
+    rules: RedactionRule[];
+    scope: RedactionScope;
+    isActive: boolean;
+  }
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request('PUT', orgPath(`/redaction-policies/${policyId}`), data as unknown as Record<string, unknown>);
+}
+
+export async function deleteRedactionPolicy(
+  policyId: string
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request('DELETE', orgPath(`/redaction-policies/${policyId}`));
+}
+
+export async function previewRedactionPolicy(data: {
+  rules: RedactionRule[];
+  payload: unknown;
+  headers?: Record<string, string>;
+}): Promise<ApiResponse<{ payload: unknown; headers: Record<string, string>; redactionCount: number; fired: boolean }>> {
+  return request('POST', orgPath('/redaction-policies/preview'), data as unknown as Record<string, unknown>);
+}
+
+// ============================================================================
+// Scheduled sends
+// ============================================================================
+
+export type ScheduledSendStatus =
+  | 'pending'
+  | 'sending'
+  | 'sent'
+  | 'failed'
+  | 'cancelled';
+
+export interface ScheduledSend {
+  id: string;
+  organization_id: string;
+  name: string | null;
+  description: string | null;
+  url: string;
+  method: string;
+  headers: unknown;
+  payload: unknown;
+  scheduled_for: string;
+  timezone: string;
+  status: ScheduledSendStatus;
+  attempts: number;
+  max_attempts: number;
+  response_status: number | null;
+  response_body: string | null;
+  latency_ms: number | null;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getScheduledSends(options?: {
+  status?: ScheduledSendStatus;
+  page?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<{ scheduledSends: ScheduledSend[]; pagination: { total: number; page: number; pageSize: number } }>> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set('status', options.status);
+  if (options?.page) params.set('page', String(options.page));
+  if (options?.pageSize) params.set('pageSize', String(options.pageSize));
+  const qs = params.toString();
+  return request('GET', orgPath(`/scheduled-sends${qs ? `?${qs}` : ''}`));
+}
+
+export async function getScheduledSend(id: string): Promise<ApiResponse<{ scheduledSend: ScheduledSend }>> {
+  return request('GET', orgPath(`/scheduled-sends/${id}`));
+}
+
+export async function createScheduledSend(data: {
+  name?: string;
+  description?: string;
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  payload?: unknown;
+  scheduledFor: string;
+  timezone?: string;
+  maxAttempts?: number;
+}): Promise<ApiResponse<{ scheduledSend: ScheduledSend }>> {
+  return request('POST', orgPath('/scheduled-sends'), data as unknown as Record<string, unknown>);
+}
+
+export async function updateScheduledSend(
+  id: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    payload: unknown;
+    scheduledFor: string;
+    timezone: string;
+    maxAttempts: number;
+  }>
+): Promise<ApiResponse<{ scheduledSend: ScheduledSend }>> {
+  return request('PATCH', orgPath(`/scheduled-sends/${id}`), data as unknown as Record<string, unknown>);
+}
+
+export async function cancelScheduledSend(id: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request('DELETE', orgPath(`/scheduled-sends/${id}`));
+}
+
+export async function sendScheduledSendNow(
+  id: string
+): Promise<ApiResponse<{ success: boolean; responseStatus?: number; latencyMs?: number; error?: string }>> {
+  return request('POST', orgPath(`/scheduled-sends/${id}/send-now`));
+}
+
+// ============================================================================
+// Outbound webhook analytics
+// ============================================================================
+
+export type WebhookAnalyticsTimeRange = '1h' | '24h' | '7d' | '30d';
+
+export async function getWebhookAnalytics(options?: {
+  timeRange?: WebhookAnalyticsTimeRange;
+  applicationId?: string;
+  endpointId?: string;
+}): Promise<ApiResponse<{ data: unknown }>> {
+  const params = new URLSearchParams();
+  if (options?.timeRange) params.set('timeRange', options.timeRange);
+  if (options?.applicationId) params.set('applicationId', options.applicationId);
+  if (options?.endpointId) params.set('endpointId', options.endpointId);
+  const qs = params.toString();
+  return request('GET', orgPath(`/webhooks/analytics${qs ? `?${qs}` : ''}`));
+}
+
+export async function getWebhookEndpointAnalytics(
+  endpointId: string,
+  timeRange?: WebhookAnalyticsTimeRange
+): Promise<ApiResponse<{ data: unknown }>> {
+  const qs = timeRange ? `?timeRange=${encodeURIComponent(timeRange)}` : '';
+  return request('GET', orgPath(`/webhooks/analytics/endpoints/${endpointId}${qs}`));
+}
+
+// ============================================================================
+// Test webhook bins (unauthenticated, not org-scoped)
+// ============================================================================
+
+export interface BinSummary {
+  id: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface BinDetail {
+  id: string;
+  url: string;
+  eventCount: number;
+  maxEvents: number;
+  createdAt: string;
+  expiresAt: string;
+  lastEventAt: string | null;
+  responseStatus: number;
+  responseHeaders: string | null;
+  responseBody: string | null;
+}
+
+export interface BinEventSummary {
+  id: string;
+  method: string;
+  urlPath: string | null;
+  queryString: string | null;
+  contentType: string | null;
+  contentLength: number | null;
+  ipAddress: string | null;
+  payloadHash: string | null;
+  receivedAt: string;
+  bodyPreview: string | null;
+}
+
+export interface BinEventDetail extends BinEventSummary {
+  headers: Record<string, string>;
+  body: string | null;
+  payloadKey: string | null;
+}
+
+export async function createBin(): Promise<ApiResponse<BinSummary>> {
+  return request('POST', '/api/bin');
+}
+
+export async function getBin(
+  binId: string
+): Promise<ApiResponse<{ bin: BinDetail; events: BinEventSummary[] }>> {
+  return request('GET', `/api/bin/${binId}`);
+}
+
+export async function getBinEvents(
+  binId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<ApiResponse<{ events: BinEventSummary[]; total: number }>> {
+  const params = new URLSearchParams();
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.offset) params.set('offset', String(options.offset));
+  const qs = params.toString();
+  return request('GET', `/api/bin/${binId}/events${qs ? `?${qs}` : ''}`);
+}
+
+export async function getBinEvent(
+  binId: string,
+  eventId: string
+): Promise<ApiResponse<BinEventDetail>> {
+  return request('GET', `/api/bin/${binId}/events/${eventId}`);
+}
+
+export async function updateBinResponse(
+  binId: string,
+  data: { statusCode?: number; headers?: Record<string, string>; body?: string }
+): Promise<ApiResponse<{ ok: boolean; statusCode: number; headers: Record<string, string> | null; body: string | null }>> {
+  return request('PATCH', `/api/bin/${binId}/response`, data as unknown as Record<string, unknown>);
 }
