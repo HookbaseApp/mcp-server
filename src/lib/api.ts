@@ -436,10 +436,73 @@ export async function replayDelivery(deliveryId: string): Promise<ApiResponse<{ 
   return request<{ delivery: Delivery }>('POST', orgPath(`/deliveries/${deliveryId}/replay`));
 }
 
+export interface ReplayOverrides {
+  modifiedPayload?: unknown;
+  destinationOverride?: string;
+  transformOverride?: { code: string; type?: string; inputFormat?: string; outputFormat?: string };
+  headersOverride?: Record<string, string>;
+  persistTransform?: boolean;
+}
+
+export async function replayDeliveryWithEdit(
+  deliveryId: string,
+  overrides: ReplayOverrides,
+): Promise<ApiResponse<{
+  message: string;
+  newDeliveryId?: string;
+  overrides?: Record<string, unknown>;
+}>> {
+  return request('POST', orgPath(`/deliveries/${deliveryId}/replay`), overrides as unknown as Record<string, unknown>);
+}
+
 export async function bulkReplayDeliveries(deliveryIds: string[]): Promise<ApiResponse<{ replayed: number; failed: number }>> {
   return request<{ replayed: number; failed: number }>('POST', orgPath('/deliveries/bulk-replay'), {
     deliveryIds,
   });
+}
+
+export async function listDeliveryClusters(params?: {
+  sinceHours?: number;
+  limit?: number;
+}): Promise<ApiResponse<{
+  clusters: Array<{
+    fingerprint: string;
+    count: number;
+    firstSeen: string;
+    lastSeen: string;
+    sampleDeliveryId: string;
+    routeName: string | null;
+    destinationName: string | null;
+    responseStatus: number | null;
+    errorMessageExcerpt: string | null;
+    rcaCategory: string | null;
+    affectedEventCount: number;
+  }>;
+  since: string;
+  sinceHours: number;
+}>> {
+  const query = new URLSearchParams();
+  if (params?.sinceHours != null) query.set('sinceHours', String(params.sinceHours));
+  if (params?.limit != null) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return request('GET', orgPath(`/delivery-clusters${qs ? `?${qs}` : ''}`));
+}
+
+export async function replayDeliveryCluster(
+  fingerprint: string,
+  overrides: ReplayOverrides & { limit?: number },
+): Promise<ApiResponse<{
+  message: string;
+  queued: number;
+  skipped: number;
+  fingerprint: string;
+  overrides: Record<string, unknown>;
+}>> {
+  return request(
+    'POST',
+    orgPath(`/delivery-clusters/${encodeURIComponent(fingerprint)}/replay-all`),
+    overrides as unknown as Record<string, unknown>,
+  );
 }
 
 // ============================================================================
