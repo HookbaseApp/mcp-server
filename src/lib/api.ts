@@ -477,6 +477,8 @@ export async function listDeliveryClusters(params?: {
     errorMessageExcerpt: string | null;
     rcaCategory: string | null;
     affectedEventCount: number;
+    recentRatePerMin: number;
+    baselineRatePerMin: number;
   }>;
   since: string;
   sinceHours: number;

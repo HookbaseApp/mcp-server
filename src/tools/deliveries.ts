@@ -205,19 +205,29 @@ export const deliveryTools = [
       return {
         since: result.data?.since,
         sinceHours: result.data?.sinceHours,
-        clusters: result.data?.clusters.map(c => ({
-          fingerprint: c.fingerprint,
-          count: c.count,
-          affectedEventCount: c.affectedEventCount,
-          firstSeen: c.firstSeen,
-          lastSeen: c.lastSeen,
-          sampleDeliveryId: c.sampleDeliveryId,
-          routeName: c.routeName,
-          destinationName: c.destinationName,
-          responseStatus: c.responseStatus,
-          errorMessageExcerpt: c.errorMessageExcerpt,
-          rcaCategory: c.rcaCategory,
-        })),
+        clusters: result.data?.clusters.map(c => {
+          // "Escalating" = recent rate > 5x baseline AND ≥ 1 fail / 5 min
+          const escalating = Number(c.recentRatePerMin) >= 0.5 &&
+            (Number(c.baselineRatePerMin) === 0
+              ? Number(c.recentRatePerMin) >= 0.5
+              : Number(c.recentRatePerMin) > Number(c.baselineRatePerMin) * 5);
+          return {
+            fingerprint: c.fingerprint,
+            count: c.count,
+            affectedEventCount: c.affectedEventCount,
+            firstSeen: c.firstSeen,
+            lastSeen: c.lastSeen,
+            sampleDeliveryId: c.sampleDeliveryId,
+            routeName: c.routeName,
+            destinationName: c.destinationName,
+            responseStatus: c.responseStatus,
+            errorMessageExcerpt: c.errorMessageExcerpt,
+            rcaCategory: c.rcaCategory,
+            recentRatePerMin: Number(c.recentRatePerMin),
+            baselineRatePerMin: Number(c.baselineRatePerMin),
+            escalating,
+          };
+        }),
       };
     },
   },
