@@ -110,13 +110,24 @@ export const eventTools = [
       if (result.error) {
         return { error: result.error };
       }
-      const e = result.data?.event;
+      // The get-event API returns camelCase fields, and `payload` sits at the top level of
+      // the response (a sibling of `event`), not inside it. Read that real shape instead of
+      // the stale snake_case type — reading e.source_id gave `undefined`, which made this
+      // tool fetch source "undefined" and 500.
+      const data = result.data as {
+        event?: { id?: string; sourceId?: string; sourceName?: string; headers?: Record<string, string> };
+        payload?: unknown;
+      } | undefined;
+      const e = data?.event;
       if (!e) {
         return { error: 'Event not found' };
       }
+      if (!e.sourceId) {
+        return { error: 'Event has no associated source' };
+      }
 
       const config = getConfig();
-      const sourceResult = await api.getSource(e.source_id);
+      const sourceResult = await api.getSource(e.sourceId);
       if (sourceResult.error) {
         return { error: `Failed to fetch source: ${sourceResult.error}` };
       }
@@ -138,15 +149,16 @@ export const eventTools = [
         }
       }
 
-      // Add payload
-      if (e.payload) {
-        const payloadStr = typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload);
+      // Add payload (top-level field on the response, not on the event object)
+      const payload = data?.payload;
+      if (payload !== undefined && payload !== null) {
+        const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
         curlCmd += ` \\\n  -d '${payloadStr.replace(/'/g, "'\\''")}'`;
       }
 
       return {
         eventId: e.id,
-        sourceName: e.source_name,
+        sourceName: e.sourceName,
         curl: curlCmd,
         note: 'This cURL command will replay the event through the ingest endpoint.',
       };
