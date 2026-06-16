@@ -77,7 +77,7 @@ npm run build
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (120)
+## Available Tools (123)
 
 ### Inbound Webhooks
 

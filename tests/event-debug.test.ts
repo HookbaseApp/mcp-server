@@ -27,8 +27,8 @@ describe('hookbase_get_event_debug', () => {
           JSON.stringify({
             event: {
               id: 'evt_1',
-              source_id: 'src_1',
-              source_name: 'GitHub',
+              sourceId: 'src_1',
+              sourceName: 'GitHub',
               method: 'POST',
               path: '/ingest/acme/github',
               headers: {
@@ -37,9 +37,9 @@ describe('hookbase_get_event_debug', () => {
                 host: 'api.test.local',
                 'x-forwarded-for': '1.2.3.4',
               },
-              payload: { hello: 'world' },
               received_at: '2026-01-01T00:00:00Z',
             },
+            payload: { hello: 'world' },
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
