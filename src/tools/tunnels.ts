@@ -21,9 +21,9 @@ export const tunnelTools = [
           name: t.name,
           subdomain: t.subdomain,
           status: t.status,
-          totalRequests: t.total_requests,
-          lastConnectedAt: t.last_connected_at,
-          createdAt: t.created_at,
+          totalRequests: t.totalRequests,
+          lastConnectedAt: t.lastConnectedAt,
+          createdAt: t.createdAt,
         })),
       };
     },
@@ -72,8 +72,8 @@ export const tunnelTools = [
           name: t.name,
           subdomain: t.subdomain,
           status: t.status,
-          totalRequests: t.total_requests,
-          lastConnectedAt: t.last_connected_at,
+          totalRequests: t.totalRequests,
+          lastConnectedAt: t.lastConnectedAt,
         } : null,
         liveStatus: result.data?.liveStatus,
       };

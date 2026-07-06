@@ -18,30 +18,35 @@ export const analyticsTools = [
         return { error: result.error };
       }
       const data = result.data;
+      // The dashboard endpoint returns snake_case OverviewStats and sources/destinations/timeline
+      // collections. totalDeliveries and successRate are derived; success_rate is already 0-100.
+      const successful = data?.overview?.successful_deliveries ?? 0;
+      const failed = data?.overview?.failed_deliveries ?? 0;
+      const totalDeliveries = successful + failed;
       return {
         range: args.range || '24h',
         overview: data?.overview ? {
-          totalEvents: data.overview.totalEvents ?? 0,
-          totalDeliveries: data.overview.totalDeliveries ?? 0,
-          successfulDeliveries: data.overview.successfulDeliveries ?? 0,
-          failedDeliveries: data.overview.failedDeliveries ?? 0,
-          successRate: data.overview.successRate != null ? `${(data.overview.successRate * 100).toFixed(1)}%` : 'N/A',
-          avgResponseTime: data.overview.avgResponseTime != null ? `${data.overview.avgResponseTime.toFixed(0)}ms` : 'N/A',
+          totalEvents: data.overview.total_events ?? 0,
+          totalDeliveries,
+          successfulDeliveries: successful,
+          failedDeliveries: failed,
+          successRate: totalDeliveries > 0 ? `${(successful / totalDeliveries * 100).toFixed(1)}%` : 'N/A',
+          avgResponseTime: data.overview.avg_latency != null ? `${data.overview.avg_latency.toFixed(0)}ms` : 'N/A',
         } : null,
-        topSources: data?.topSources?.map(s => ({
+        topSources: data?.sources?.map(s => ({
           id: s.id,
           name: s.name,
           slug: s.slug,
-          eventCount: s.eventCount ?? 0,
+          eventCount: s.event_count ?? 0,
         })),
-        topDestinations: data?.topDestinations?.map(d => ({
+        topDestinations: data?.destinations?.map(d => ({
           id: d.id,
           name: d.name,
-          deliveryCount: d.deliveryCount ?? 0,
-          successRate: d.successRate != null ? `${(d.successRate * 100).toFixed(1)}%` : 'N/A',
+          deliveryCount: d.total_deliveries ?? 0,
+          successRate: d.success_rate != null ? `${d.success_rate.toFixed(1)}%` : 'N/A',
         })),
-        eventsByHour: data?.eventsByHour,
-        deliveriesByStatus: data?.deliveriesByStatus,
+        eventsByHour: data?.timeline,
+        deliveriesByStatus: data?.retries?.distribution,
       };
     },
   },
