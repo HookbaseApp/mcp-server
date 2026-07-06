@@ -63,24 +63,25 @@ function orgPath(path: string): string {
 // Sources
 // ============================================================================
 
+// Live API returns camelCase + real booleans. GET /:id masks the signing secret to
+// hasSigningSecret/signingSecretLast4 and does NOT include event/route counts (only the list does);
+// POST returns the full signingSecret once.
 export interface Source {
   id: string;
   name: string;
   slug: string;
   provider: string | null;
   description?: string;
-  signing_secret?: string;
-  reject_invalid_signatures?: boolean;
-  rate_limit_per_minute?: number;
   isActive?: boolean;
-  is_active?: number;
-  eventCount?: number;
-  event_count?: number;
-  routeCount?: number;
-  route_count?: number;
   transientMode?: boolean;
-  transient_mode?: number;
-  created_at?: string;
+  eventCount?: number;
+  routeCount?: number;
+  rejectInvalidSignatures?: boolean;
+  rateLimitPerMinute?: number;
+  hasSigningSecret?: boolean;
+  signingSecretLast4?: string;
+  signingSecret?: string;
+  createdAt?: string;
 }
 
 export async function getSources(): Promise<ApiResponse<{ sources: Source[] }>> {
@@ -141,6 +142,9 @@ export async function deleteSource(sourceId: string): Promise<ApiResponse<{ succ
 // Destinations
 // ============================================================================
 
+// Live API returns camelCase + real booleans. fn_dest_list exposes routeCount/successCount/failureCount
+// (no total deliveryCount); fn_dest_get exposes none of the counts. GET may return fieldMapping as a raw
+// JSON string (a handler re-parse targets the wrong key), hence the string union.
 export interface Destination {
   id: string;
   name: string;
@@ -149,18 +153,18 @@ export interface Destination {
   url: string;
   method: string;
   headers?: Record<string, string>;
-  auth_type: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
-  auth_config?: Record<string, string>;
-  timeout_ms?: number;
-  rate_limit_per_minute?: number;
-  mock_mode?: boolean;
-  is_active: number;
+  authType?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
+  authConfig?: Record<string, string>;
+  timeoutMs?: number;
+  rateLimitPerMinute?: number;
+  mockEnabled?: boolean;
+  isActive?: boolean;
   config?: Record<string, any>;
-  field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
-  delivery_count?: number;
-  success_count?: number;
-  failure_count?: number;
-  created_at?: string;
+  fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }> | string;
+  successCount?: number;
+  failureCount?: number;
+  routeCount?: number;
+  createdAt?: string;
 }
 
 export async function getDestinations(): Promise<ApiResponse<{ destinations: Destination[] }>> {
@@ -238,12 +242,12 @@ export async function deleteDestination(destId: string): Promise<ApiResponse<{ s
 
 export async function testDestination(destId: string): Promise<ApiResponse<{
   success: boolean;
-  statusCode: number;
-  responseTime: number;
+  status: number;
+  latencyMs: number;
   responseBody?: string;
   error?: string;
 }>> {
-  return request<{ success: boolean; statusCode: number; responseTime: number; responseBody?: string; error?: string }>(
+  return request<{ success: boolean; status: number; latencyMs: number; responseBody?: string; error?: string }>(
     'POST',
     orgPath(`/destinations/${destId}/test`)
   );
@@ -253,20 +257,23 @@ export async function testDestination(destId: string): Promise<ApiResponse<{
 // Routes
 // ============================================================================
 
+// The live API (PostgreSQL via callFunction) returns camelCase keys and real JS booleans.
+// The list handler remaps destName->destinationName, but the GET /:id handler spreads the raw
+// fn_route_get row, so a single-route fetch exposes destName/destSlug (not destinationName).
 export interface Route {
   id: string;
   name: string;
-  source_id: string;
-  destination_id: string;
-  source_name?: string;
-  destination_name?: string;
-  filter_id?: string;
-  transform_id?: string;
-  schema_id?: string;
+  sourceId: string;
+  destinationId: string;
+  sourceName?: string;
+  destinationName?: string;
+  destName?: string;
+  filterId?: string;
+  transformId?: string;
+  schemaId?: string;
   priority: number;
-  is_active: number;
-  delivery_count?: number;
-  created_at?: string;
+  isActive: boolean;
+  createdAt?: string;
 }
 
 export interface FilterCondition {
@@ -330,25 +337,20 @@ export async function deleteRoute(routeId: string): Promise<ApiResponse<{ succes
 // Events
 // ============================================================================
 
+// Live API returns camelCase. The list endpoint carries deliveryStats (not a flat delivery_count);
+// the /:id detail endpoint puts `payload` and `deliveries` at the TOP LEVEL of the response (siblings
+// of `event`) and returns headers as a raw JSON string. method/path/payloadSize are not returned.
 export interface Event {
   id: string;
-  source_id: string;
-  source_name?: string;
-  source_slug?: string;
-  event_type?: string;
-  method?: string;
-  path?: string;
-  headers?: Record<string, string>;
-  payload_size?: number;
-  signature_valid?: boolean;
+  sourceId: string;
+  sourceName?: string;
+  sourceSlug?: string;
+  eventType?: string;
+  headers?: Record<string, string> | string;
+  signatureValid?: boolean;
   status?: 'delivered' | 'failed' | 'pending' | 'partial' | 'no_routes';
-  delivery_count?: number;
-  received_at: string;
-}
-
-export interface EventWithPayload extends Event {
-  payload?: unknown;
-  deliveries?: Delivery[];
+  deliveryStats?: { total: number; delivered: number; failed: number; pending: number } | null;
+  receivedAt: string;
 }
 
 export async function getEvents(options?: {
@@ -378,31 +380,33 @@ export async function getEvents(options?: {
   );
 }
 
-export async function getEvent(eventId: string): Promise<ApiResponse<{ event: EventWithPayload }>> {
-  return request<{ event: EventWithPayload }>('GET', orgPath(`/events/${eventId}`));
+// payload and deliveries are TOP-LEVEL siblings of `event`, not nested inside it.
+export async function getEvent(eventId: string): Promise<ApiResponse<{ event: Event; payload?: unknown; deliveries?: Delivery[] }>> {
+  return request<{ event: Event; payload?: unknown; deliveries?: Delivery[] }>('GET', orgPath(`/events/${eventId}`));
 }
 
 // ============================================================================
 // Deliveries
 // ============================================================================
 
+// Live API returns camelCase. Note two value-name differences: latencyMs (not responseTimeMs) and
+// deliveredAt (not completedAt). routeName is NOT returned by the list or detail endpoints.
 export interface Delivery {
   id: string;
-  event_id: string;
-  route_id: string;
-  destination_id: string;
-  destination_name?: string;
-  route_name?: string;
-  status: 'pending' | 'success' | 'failed' | 'retrying';
-  attempt_count: number;
-  max_attempts: number;
-  response_status?: number;
-  response_time_ms?: number;
-  response_body?: string;
-  error_message?: string;
-  next_retry_at?: string;
-  completed_at?: string;
-  created_at: string;
+  eventId: string;
+  routeId: string;
+  destinationId: string;
+  destinationName?: string;
+  status: string;
+  attemptCount: number;
+  maxAttempts: number;
+  responseStatus?: number;
+  latencyMs?: number;
+  responseBody?: string;
+  errorMessage?: string;
+  nextRetryAt?: string;
+  deliveredAt?: string;
+  createdAt: string;
 }
 
 export async function getDeliveries(options?: {
@@ -412,7 +416,7 @@ export async function getDeliveries(options?: {
   routeId?: string;
   destinationId?: string;
   status?: string;
-}): Promise<ApiResponse<{ deliveries: Delivery[]; total: number; hasMore: boolean }>> {
+}): Promise<ApiResponse<{ deliveries: Delivery[]; limit?: number; offset?: number }>> {
   const params = new URLSearchParams();
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
@@ -422,7 +426,7 @@ export async function getDeliveries(options?: {
   if (options?.status) params.set('status', options.status);
 
   const queryString = params.toString();
-  return request<{ deliveries: Delivery[]; total: number; hasMore: boolean }>(
+  return request<{ deliveries: Delivery[]; limit?: number; offset?: number }>(
     'GET',
     orgPath(`/deliveries${queryString ? `?${queryString}` : ''}`)
   );
@@ -432,8 +436,9 @@ export async function getDelivery(deliveryId: string): Promise<ApiResponse<{ del
   return request<{ delivery: Delivery }>('GET', orgPath(`/deliveries/${deliveryId}`));
 }
 
-export async function replayDelivery(deliveryId: string): Promise<ApiResponse<{ delivery: Delivery }>> {
-  return request<{ delivery: Delivery }>('POST', orgPath(`/deliveries/${deliveryId}/replay`));
+// The replay endpoint returns a flat envelope ({ deliveryId, message, modified, ... }), NOT a delivery object.
+export async function replayDelivery(deliveryId: string): Promise<ApiResponse<{ deliveryId?: string; message?: string; modified?: boolean; targetDestinationId?: string }>> {
+  return request<{ deliveryId?: string; message?: string; modified?: boolean; targetDestinationId?: string }>('POST', orgPath(`/deliveries/${deliveryId}/replay`));
 }
 
 export interface ReplayOverrides {
@@ -516,10 +521,10 @@ export interface Tunnel {
   name: string;
   subdomain: string;
   status: 'connected' | 'disconnected' | 'error';
-  auth_token?: string;
-  total_requests: number;
-  last_connected_at: string | null;
-  created_at?: string;
+  authToken?: string;
+  totalRequests: number;
+  lastConnectedAt: string | null;
+  createdAt?: string;
 }
 
 export interface CreateTunnelResponse {
@@ -557,23 +562,23 @@ export async function deleteTunnel(tunnelId: string): Promise<ApiResponse<{ succ
 
 export interface CronJob {
   id: string;
-  organization_id: string;
-  group_id?: string | null;
+  organizationId?: string;
+  groupId?: string | null;
   name: string;
   description?: string | null;
-  cron_expression: string;
+  cronExpression: string;
   timezone: string;
   url: string;
   method: string;
   headers?: string | null;
   payload?: string | null;
-  timeout_ms: number;
-  is_active: number;
-  last_run_at?: string | null;
-  next_run_at?: string | null;
-  consecutive_failures?: number;
-  created_at: string;
-  updated_at: string;
+  timeoutMs?: number;
+  isActive: boolean;
+  lastRunAt?: string | null;
+  nextRunAt?: string | null;
+  consecutiveFailures?: number;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CronTriggerResult {
@@ -817,36 +822,21 @@ export async function deleteNotificationChannel(
 // Analytics
 // ============================================================================
 
+// Real getDashboardData() shape: overview is snake_case OverviewStats (no totalDeliveries/successRate/
+// avgResponseTime — those are derived), and the collections are keyed sources/destinations/timeline
+// with snake_case row fields. success_rate is already 0-100 (do not multiply).
 export interface DashboardAnalytics {
   overview: {
-    totalEvents: number;
-    totalDeliveries: number;
-    successfulDeliveries: number;
-    failedDeliveries: number;
-    successRate: number;
-    avgResponseTime: number;
+    total_events?: number;
+    successful_deliveries?: number;
+    failed_deliveries?: number;
+    avg_latency?: number | null;
   };
-  topSources: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    eventCount: number;
-  }>;
-  topDestinations: Array<{
-    id: string;
-    name: string;
-    deliveryCount: number;
-    successRate: number;
-  }>;
-  recentEvents: Event[];
-  eventsByHour?: Array<{
-    hour: string;
-    count: number;
-  }>;
-  deliveriesByStatus?: Array<{
-    status: string;
-    count: number;
-  }>;
+  sources?: Array<{ id: string; name: string; slug: string; event_count?: number }>;
+  destinations?: Array<{ id: string; name: string; total_deliveries?: number; success_rate?: number | null }>;
+  timeline?: Array<{ period: string; events: number; successful: number; failed: number }>;
+  retries?: { distribution?: unknown };
+  errors?: { byStatusCode?: unknown };
 }
 
 export async function getDashboardAnalytics(range: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<ApiResponse<DashboardAnalytics>> {

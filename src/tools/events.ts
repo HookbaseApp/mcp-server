@@ -43,15 +43,13 @@ export const eventTools = [
       return {
         events: result.data?.events.map(e => ({
           id: e.id,
-          sourceId: e.source_id,
-          sourceName: e.source_name,
-          eventType: e.event_type,
-          method: e.method,
-          payloadSize: e.payload_size,
-          signatureValid: e.signature_valid,
+          sourceId: e.sourceId,
+          sourceName: e.sourceName,
+          eventType: e.eventType,
+          signatureValid: e.signatureValid,
           status: e.status,
-          deliveryCount: e.delivery_count ?? 0,
-          receivedAt: e.received_at,
+          deliveryCount: e.deliveryStats?.total ?? 0,
+          receivedAt: e.receivedAt,
         })),
         total: result.data?.total,
         hasMore: result.data?.hasMore,
@@ -70,30 +68,29 @@ export const eventTools = [
         return { error: result.error };
       }
       const e = result.data?.event;
+      // payload and deliveries are top-level siblings of `event` on the response, not nested in it.
+      const deliveries = result.data?.deliveries;
       return {
         event: e ? {
           id: e.id,
-          sourceId: e.source_id,
-          sourceName: e.source_name,
-          eventType: e.event_type,
-          method: e.method,
-          path: e.path,
+          sourceId: e.sourceId,
+          sourceName: e.sourceName,
+          eventType: e.eventType,
           headers: e.headers,
-          payload: e.payload,
-          payloadSize: e.payload_size,
-          signatureValid: e.signature_valid,
+          payload: result.data?.payload,
+          signatureValid: e.signatureValid,
           status: e.status,
-          deliveryCount: e.delivery_count ?? 0,
-          receivedAt: e.received_at,
-          deliveries: e.deliveries?.map(d => ({
+          deliveryCount: deliveries?.length ?? 0,
+          receivedAt: e.receivedAt,
+          deliveries: deliveries?.map(d => ({
             id: d.id,
-            destinationName: d.destination_name,
+            destinationName: d.destinationName,
             status: d.status,
-            attemptCount: d.attempt_count,
-            responseStatus: d.response_status,
-            responseTimeMs: d.response_time_ms,
-            errorMessage: d.error_message,
-            completedAt: d.completed_at,
+            attemptCount: d.attemptCount,
+            responseStatus: d.responseStatus,
+            responseTimeMs: d.latencyMs,
+            errorMessage: d.errorMessage,
+            completedAt: d.deliveredAt,
           })),
         } : null,
       };

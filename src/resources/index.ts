@@ -107,7 +107,7 @@ export const hookbaseResources: ResourceDef[] = [
         return jsonContents(uri, { error: result.error ?? 'Tunnel not found' });
       }
       const tunnel = result.data.tunnel;
-      if (!tunnel.auth_token) {
+      if (!tunnel.authToken) {
         return jsonContents(uri, {
           tunnelId: tunnel.id,
           subdomain: tunnel.subdomain,
@@ -116,7 +116,7 @@ export const hookbaseResources: ResourceDef[] = [
         });
       }
       const host = apiUrl.replace(/^https?:\/\//, '');
-      const wsUrl = `wss://${host}/tunnels/${tunnel.subdomain}/ws?tunnelId=${tunnel.id}&token=${tunnel.auth_token}`;
+      const wsUrl = `wss://${host}/tunnels/${tunnel.subdomain}/ws?tunnelId=${tunnel.id}&token=${tunnel.authToken}`;
       return jsonContents(uri, {
         tunnelId: tunnel.id,
         name: tunnel.name,
