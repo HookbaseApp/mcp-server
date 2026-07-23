@@ -81,6 +81,8 @@ export interface Source {
   hasSigningSecret?: boolean;
   signingSecretLast4?: string;
   signingSecret?: string;
+  // Verbs the ingest endpoint accepts; [] means any method.
+  allowedMethods?: string[];
   createdAt?: string;
 }
 
@@ -101,6 +103,7 @@ export async function createSource(
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
     transientMode?: boolean;
+    allowedMethods?: string[];
   }
 ): Promise<ApiResponse<{ source: Source }>> {
   const body: Record<string, unknown> = {
@@ -110,6 +113,7 @@ export async function createSource(
     rejectInvalidSignatures: options?.rejectInvalidSignatures,
     rateLimitPerMinute: options?.rateLimitPerMinute,
     transientMode: options?.transientMode,
+    allowedMethods: options?.allowedMethods,
   };
 
   if (provider && provider.length > 0) {
@@ -129,6 +133,7 @@ export async function updateSource(
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
     transientMode?: boolean;
+    allowedMethods?: string[];
   }
 ): Promise<ApiResponse<{ source: Source }>> {
   return request<{ source: Source }>('PATCH', orgPath(`/sources/${sourceId}`), data);

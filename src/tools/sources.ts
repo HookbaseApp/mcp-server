@@ -5,6 +5,14 @@
 import { z } from 'zod';
 import * as api from '../lib/api.js';
 
+// Mirrors VALID_INGEST_METHODS in api/src/routes/sources.ts. OPTIONS is excluded there because
+// CORS preflight is answered by middleware before ingest runs.
+const INGEST_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] as const;
+
+const ALLOWED_METHODS_DESC =
+  "HTTP methods this source's ingest endpoint accepts. Omit or pass [] to accept any method. " +
+  'GET/HEAD/DELETE carry no body, so their query string becomes the event payload.';
+
 export const sourceTools = [
   {
     name: 'hookbase_list_sources',
@@ -23,6 +31,7 @@ export const sourceTools = [
           provider: s.provider,
           isActive: s.isActive,
           transientMode: s.transientMode ?? false,
+          allowedMethods: s.allowedMethods ?? [],
           eventCount: s.eventCount ?? 0,
           routeCount: s.routeCount ?? 0,
           createdAt: s.createdAt,
@@ -56,6 +65,7 @@ export const sourceTools = [
           rateLimitPerMinute: s.rateLimitPerMinute,
           isActive: s.isActive,
           transientMode: s.transientMode ?? false,
+          allowedMethods: s.allowedMethods ?? [],
           createdAt: s.createdAt,
         } : null,
       };
@@ -72,6 +82,7 @@ export const sourceTools = [
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject webhooks with invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute (rate limiting)'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance). Disables replay and payload viewing.'),
+      allowed_methods: z.array(z.enum(INGEST_METHODS)).optional().describe(ALLOWED_METHODS_DESC),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -81,12 +92,14 @@ export const sourceTools = [
       reject_invalid_signatures?: boolean;
       rate_limit_per_minute?: number;
       transient_mode?: boolean;
+      allowed_methods?: string[];
     }) => {
       const result = await api.createSource(args.name, args.slug, args.provider, {
         description: args.description,
         rejectInvalidSignatures: args.reject_invalid_signatures,
         rateLimitPerMinute: args.rate_limit_per_minute,
         transientMode: args.transient_mode,
+        allowedMethods: args.allowed_methods,
       });
       if (result.error) {
         return { error: result.error };
@@ -116,6 +129,7 @@ export const sourceTools = [
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance)'),
+      allowed_methods: z.array(z.enum(INGEST_METHODS)).optional().describe(ALLOWED_METHODS_DESC + ' Pass [] to revert to accepting any method.'),
     }).strict(),
     handler: async (args: {
       source_id: string;
@@ -126,6 +140,7 @@ export const sourceTools = [
       reject_invalid_signatures?: boolean;
       rate_limit_per_minute?: number;
       transient_mode?: boolean;
+      allowed_methods?: string[];
     }) => {
       const result = await api.updateSource(args.source_id, {
         name: args.name,
@@ -135,6 +150,7 @@ export const sourceTools = [
         rejectInvalidSignatures: args.reject_invalid_signatures,
         rateLimitPerMinute: args.rate_limit_per_minute,
         transientMode: args.transient_mode,
+        allowedMethods: args.allowed_methods,
       });
       if (result.error) {
         return { error: result.error };
