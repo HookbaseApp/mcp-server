@@ -13,3 +13,7 @@ HOOKBASE_API_URL = "https://api.hookbase.app"
 [[routes]]
 pattern = "mcp.hookbase.app"
 custom_domain = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
