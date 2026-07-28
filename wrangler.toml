@@ -1,0 +1,15 @@
+# Remote MCP transport — Cloudflare Worker.
+# The stdio transport (dist/index.js, published to npm) is unaffected by this.
+name = "hookbase-mcp"
+main = "src/worker.ts"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+HOOKBASE_API_URL = "https://api.hookbase.app"
+
+# Custom domain — wrangler provisions the DNS record + cert on deploy (hookbase.app
+# is a zone in this Cloudflare account). Also reachable at the workers.dev URL.
+[[routes]]
+pattern = "mcp.hookbase.app"
+custom_domain = true

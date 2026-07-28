@@ -15,6 +15,8 @@ import { promises as fs } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
+import { currentContext } from './context.js';
+
 export interface Config {
   apiUrl: string;
   apiKey: string;
@@ -168,15 +170,25 @@ function rememberError(message: string): { error: string } {
 
 /**
  * Returns the error captured during initConfig, if any.
+ *
+ * Under the HTTP transport a per-request context supersedes the global: config
+ * is resolved before the handler runs, so there is never an init error there.
  */
 export function getInitError(): string | null {
+  if (currentContext()) return null;
   return cachedInitError;
 }
 
 /**
- * Get configuration (must call initConfig first)
+ * Get configuration.
+ *
+ * HTTP transport: returns the request-scoped config placed in AsyncLocalStorage
+ * by runWithConfig(). stdio transport: returns the module singleton populated by
+ * initConfig().
  */
 export function getConfig(): Config {
+  const ctx = currentContext();
+  if (ctx?.config) return ctx.config;
   if (!cachedConfig) {
     throw new Error('Config not initialized. Call initConfig() first.');
   }

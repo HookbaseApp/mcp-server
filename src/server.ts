@@ -8,29 +8,7 @@ import { z } from 'zod';
 
 import pkg from '../package.json' with { type: 'json' };
 import { initConfig, getInitError } from './lib/config.js';
-import { sourceTools } from './tools/sources.js';
-import { destinationTools } from './tools/destinations.js';
-import { routeTools } from './tools/routes.js';
-import { eventTools } from './tools/events.js';
-import { deliveryTools } from './tools/deliveries.js';
-import { tunnelTools } from './tools/tunnels.js';
-import { cronTools } from './tools/cron.js';
-import { cronGroupTools } from './tools/cron-groups.js';
-import { analyticsTools } from './tools/analytics.js';
-import { filterTools } from './tools/filters.js';
-import { transformTools } from './tools/transforms.js';
-import { schemaTools } from './tools/schemas.js';
-import { alertRuleTools } from './tools/alert-rules.js';
-import { notificationChannelTools } from './tools/notification-channels.js';
-import { outboundTools } from './tools/outbound.js';
-import { eventTypeTools } from './tools/outbound-event-types.js';
-import { outboundMessageTools } from './tools/outbound-messages.js';
-import { auditLogTools } from './tools/audit-logs.js';
-import { apiKeyTools } from './tools/api-keys.js';
-import { redactionPolicyTools } from './tools/redaction-policies.js';
-import { scheduledSendTools } from './tools/scheduled-sends.js';
-import { webhookAnalyticsTools } from './tools/webhook-analytics.js';
-import { binTools } from './tools/bins.js';
+import { allTools } from './tools/index.js';
 import { hookbasePrompts } from './prompts/index.js';
 import { hookbaseResources } from './resources/index.js';
 
@@ -51,38 +29,7 @@ export async function createServer(): Promise<McpServer> {
     console.error(`Configuration error: ${configResult.error}`);
   }
 
-  // Collect all tools
-  const allTools = [
-    ...sourceTools,
-    ...destinationTools,
-    ...routeTools,
-    ...eventTools,
-    ...deliveryTools,
-    ...tunnelTools,
-    ...cronTools,
-    ...cronGroupTools,
-    ...analyticsTools,
-    // Routing primitives
-    ...filterTools,
-    ...transformTools,
-    ...schemaTools,
-    // Alerts & notifications
-    ...alertRuleTools,
-    ...notificationChannelTools,
-    // Outbound webhooks
-    ...outboundTools,
-    ...eventTypeTools,
-    ...outboundMessageTools,
-    ...webhookAnalyticsTools,
-    // Org administration
-    ...apiKeyTools,
-    ...auditLogTools,
-    ...redactionPolicyTools,
-    ...scheduledSendTools,
-    ...binTools,
-  ];
-
-  // Register each tool
+  // Register each tool from the shared registry (src/tools/index.ts)
   for (const tool of allTools) {
     const schema = tool.inputSchema as z.ZodObject<Record<string, z.ZodType>>;
     server.tool(

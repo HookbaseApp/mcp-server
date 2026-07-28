@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Wrangler (Cloudflare Worker) local state
+.wrangler/
+
 # IDE
 .idea/
 .vscode/

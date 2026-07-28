@@ -66,6 +66,47 @@ npm install
 npm run build
 ```
 
+## Remote / Hosted (HTTP)
+
+The `npx` setup above runs the server **locally over stdio** — great for Claude Desktop and Cursor, which spawn a local process. Clients that can't spawn a process (ChatGPT connectors, Claude on the web, and connector directories) need a **remote URL** instead.
+
+For those, Hookbase exposes the same tools over a stateless [Streamable HTTP](https://modelcontextprotocol.io/specification/basic/transports) endpoint. No install — just a URL and your API key:
+
+```
+POST https://mcp.hookbase.app/mcp
+Authorization: Bearer whr_live_your_key_here
+```
+
+Add it as a remote MCP connector:
+
+```json
+{
+  "mcpServers": {
+    "hookbase": {
+      "url": "https://mcp.hookbase.app/mcp",
+      "headers": {
+        "Authorization": "Bearer whr_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+- **Auth** is your `whr_` API key as a bearer token. The organization is resolved from the key.
+- If the key belongs to **multiple organizations**, add an `X-Hookbase-Org-Id` header to pick one.
+- The endpoint is stateless (no sessions) and CORS-enabled for browser-based clients.
+
+### Deploying the remote server
+
+The remote transport is a Cloudflare Worker (`src/worker.ts`), separate from the published npm package:
+
+```bash
+npm run dev:worker      # local dev at http://localhost:8787
+npm run deploy:worker   # deploy to Cloudflare (wrangler.toml)
+```
+
+Bind a custom domain (e.g. `mcp.hookbase.app`) in the Cloudflare dashboard; until then Wrangler serves it at `https://hookbase-mcp.<subdomain>.workers.dev`.
+
 ## Configuration
 
 | Variable | Required | Description |

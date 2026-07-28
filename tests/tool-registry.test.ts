@@ -23,6 +23,7 @@ import { redactionPolicyTools } from '../src/tools/redaction-policies.js';
 import { scheduledSendTools } from '../src/tools/scheduled-sends.js';
 import { webhookAnalyticsTools } from '../src/tools/webhook-analytics.js';
 import { binTools } from '../src/tools/bins.js';
+import { allTools as sharedRegistry } from '../src/tools/index.js';
 
 const allTools = [
   ...sourceTools,
@@ -64,6 +65,11 @@ describe('tool registry', () => {
     for (const tool of allTools) {
       expect(tool.description.length).toBeGreaterThan(10);
     }
+  });
+
+  it('shared registry (src/tools/index.ts) matches the full tool set', () => {
+    // Guards the extraction: the registry both transports import must stay complete.
+    expect(new Set(sharedRegistry.map(t => t.name))).toEqual(new Set(allTools.map(t => t.name)));
   });
 
   it('every tool inputSchema is a Zod object', () => {
