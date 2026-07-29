@@ -112,7 +112,7 @@ export const eventTools = [
       // the stale snake_case type — reading e.source_id gave `undefined`, which made this
       // tool fetch source "undefined" and 500.
       const data = result.data as {
-        event?: { id?: string; sourceId?: string; sourceName?: string; headers?: Record<string, string> };
+        event?: { id?: string; sourceId?: string; sourceName?: string; headers?: Record<string, string> | string };
         payload?: unknown;
       } | undefined;
       const e = data?.event;
@@ -133,24 +133,47 @@ export const eventTools = [
         return { error: 'Source not found' };
       }
 
-      // Build cURL command. Ingest route is POST /ingest/:orgSlug/:sourceSlug.
+      // Build cURL reproducing how the event arrived. Ingest route: <METHOD> /ingest/:orgSlug/:sourceSlug.
+      // `headers` comes back from the API as a JSON STRING — parse it first. (Iterating the raw
+      // string enumerated it character-by-character and emitted ~89 junk `-H '0: {'` flags.)
       const ingestUrl = `${config.apiUrl}/ingest/${config.orgSlug}/${source.slug}`;
-      let curlCmd = `curl -X POST '${ingestUrl}'`;
+      const headers: Record<string, string> =
+        typeof e.headers === 'string'
+          ? ((): Record<string, string> => { try { return JSON.parse(e.headers as string); } catch { return {}; } })()
+          : (e.headers ?? {});
 
-      // Add headers
-      if (e.headers) {
-        for (const [key, value] of Object.entries(e.headers)) {
-          if (!key.toLowerCase().startsWith('x-forwarded') && key.toLowerCase() !== 'host') {
-            curlCmd += ` \\\n  -H '${key}: ${value}'`;
-          }
-        }
-      }
+      // Verb the webhook arrived with — ingest records it under the ':method' pseudo-header.
+      const method = String(headers[':method'] || 'POST').toUpperCase();
+      const bodiless = method === 'GET' || method === 'HEAD' || method === 'DELETE';
 
-      // Add payload (top-level field on the response, not on the event object)
+      // Drop pseudo-headers (':method' et al — stored metadata, not sendable) and hop-by-hop noise.
+      const headerFlags = Object.entries(headers)
+        .filter(([k]) => !k.startsWith(':')
+          && !['host', 'content-length'].includes(k.toLowerCase())
+          && !k.toLowerCase().startsWith('x-forwarded'))
+        .map(([k, v]) => ` \\\n  -H '${k}: ${v}'`)
+        .join('');
+
       const payload = data?.payload;
-      if (payload !== undefined && payload !== null) {
-        const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
-        curlCmd += ` \\\n  -d '${payloadStr.replace(/'/g, "'\\''")}'`;
+      let curlCmd: string;
+      if (bodiless) {
+        // Bodiless verbs carry their payload in the query string, not a request body.
+        const qs = payload && typeof payload === 'object' && !Array.isArray(payload)
+          ? new URLSearchParams(
+              Object.entries(payload as Record<string, unknown>).flatMap(([k, v]) =>
+                Array.isArray(v)
+                  ? v.map((x) => [k, String(x)] as [string, string])
+                  : [[k, String(v)] as [string, string]],
+              ),
+            ).toString()
+          : '';
+        curlCmd = `curl -X ${method} '${ingestUrl}${qs ? `?${qs}` : ''}'${headerFlags}`;
+      } else {
+        curlCmd = `curl -X ${method} '${ingestUrl}'${headerFlags}`;
+        if (payload !== undefined && payload !== null) {
+          const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+          curlCmd += ` \\\n  -d '${payloadStr.replace(/'/g, "'\\''")}'`;
+        }
       }
 
       return {
