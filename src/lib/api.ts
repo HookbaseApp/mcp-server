@@ -578,6 +578,7 @@ export interface CronJob {
   headers?: string | null;
   payload?: string | null;
   timeoutMs?: number;
+  useStaticIp?: boolean;
   isActive: boolean;
   lastRunAt?: string | null;
   nextRunAt?: string | null;
@@ -608,6 +609,7 @@ export async function createCronJob(data: {
   headers?: Record<string, string>;
   payload?: string;
   timeoutMs?: number;
+  useStaticIp?: boolean;
 }): Promise<ApiResponse<{ cronJob: CronJob }>> {
   return request<{ cronJob: CronJob }>('POST', orgPath('/cron'), {
     name: data.name,
@@ -619,6 +621,7 @@ export async function createCronJob(data: {
     headers: data.headers,
     payload: data.payload,
     timeoutMs: data.timeoutMs || 30000,
+    useStaticIp: data.useStaticIp,
   });
 }
 
@@ -643,6 +646,7 @@ export async function updateCronJob(
     notifyOnSuccess?: boolean;
     notifyEmails?: string;
     groupId?: string | null;
+    useStaticIp?: boolean;
   }
 ): Promise<ApiResponse<{ success: boolean }>> {
   return request<{ success: boolean }>('PATCH', orgPath(`/cron/${jobId}`), data);

@@ -46,6 +46,7 @@ export const cronTools = [
       timezone: z.string().optional().describe('Timezone for the schedule (default: UTC)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
       description: z.string().optional().describe('Optional description'),
+      use_static_ip: z.boolean().optional().describe('Egress this job from a dedicated static IP (Pro/Business plans only)'),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -57,6 +58,7 @@ export const cronTools = [
       timezone?: string;
       timeout_ms?: number;
       description?: string;
+      use_static_ip?: boolean;
     }) => {
       const result = await api.createCronJob({
         name: args.name,
@@ -68,6 +70,7 @@ export const cronTools = [
         timezone: args.timezone,
         timeoutMs: args.timeout_ms,
         description: args.description,
+        useStaticIp: args.use_static_ip,
       });
       if (result.error) {
         return { error: result.error };
@@ -116,6 +119,7 @@ export const cronTools = [
       notify_on_success: z.boolean().optional(),
       notify_emails: z.string().optional().describe('Comma-separated email addresses'),
       group_id: z.string().nullable().optional().describe('Cron group ID, or null to remove from group'),
+      use_static_ip: z.boolean().optional().describe('Egress this job from a dedicated static IP (Pro/Business plans only)'),
     }).strict(),
     handler: async (args: {
       job_id: string;
@@ -133,6 +137,7 @@ export const cronTools = [
       notify_on_success?: boolean;
       notify_emails?: string;
       group_id?: string | null;
+      use_static_ip?: boolean;
     }) => {
       const result = await api.updateCronJob(args.job_id, {
         name: args.name,
@@ -149,6 +154,7 @@ export const cronTools = [
         notifyOnSuccess: args.notify_on_success,
         notifyEmails: args.notify_emails,
         groupId: args.group_id,
+        useStaticIp: args.use_static_ip,
       });
       if (result.error) return { error: result.error };
       return { message: 'Cron job updated' };
