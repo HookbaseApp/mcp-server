@@ -150,6 +150,13 @@ export async function deleteSource(sourceId: string): Promise<ApiResponse<{ succ
 // Live API returns camelCase + real booleans. fn_dest_list exposes routeCount/successCount/failureCount
 // (no total deliveryCount); fn_dest_get exposes none of the counts. GET may return fieldMapping as a raw
 // JSON string (a handler re-parse targets the wrong key), hence the string union.
+//
+// Throttle asymmetry: GET (single + list) returns FLAT throttleMode/throttleRateLimit/throttleRateUnit/
+// throttleMaxConcurrency/throttleQueueLimit fields (fn_dest_get/fn_dest_list rows spread as-is — see
+// api/src/routes/destinations.ts DestRow), NOT a nested `throttle` object. Only the /export endpoint
+// nests them. POST/PATCH request bodies, by contrast, take a nested `throttle: {...}` object (see
+// ThrottleConfig below and createDestinationSchema in the API). Replaced the old flat
+// `rateLimitPerMinute` field, which the API no longer has.
 export interface Destination {
   id: string;
   name: string;
@@ -161,7 +168,11 @@ export interface Destination {
   authType?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
   authConfig?: Record<string, string>;
   timeoutMs?: number;
-  rateLimitPerMinute?: number;
+  throttleMode?: 'off' | 'rate' | 'concurrency';
+  throttleRateLimit?: number | null;
+  throttleRateUnit?: 'second' | 'minute' | 'hour' | null;
+  throttleMaxConcurrency?: number | null;
+  throttleQueueLimit?: number | null;
   mockEnabled?: boolean;
   isActive?: boolean;
   config?: Record<string, any>;
@@ -170,6 +181,17 @@ export interface Destination {
   failureCount?: number;
   routeCount?: number;
   createdAt?: string;
+}
+
+// Shape of the nested `throttle` object accepted by POST /destinations and PATCH /destinations/:id.
+// rateLimit+rateUnit are required when mode is 'rate'; maxConcurrency is required when mode is
+// 'concurrency'; queueLimit is optional in both. Mirrors createDestinationSchema in the API.
+export interface ThrottleConfig {
+  mode: 'off' | 'rate' | 'concurrency';
+  rateLimit?: number | null;
+  rateUnit?: 'second' | 'minute' | 'hour' | null;
+  maxConcurrency?: number | null;
+  queueLimit?: number | null;
 }
 
 export async function getDestinations(): Promise<ApiResponse<{ destinations: Destination[] }>> {
@@ -190,7 +212,7 @@ export async function createDestination(data: {
   authType?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
   authConfig?: Record<string, string>;
   timeoutMs?: number;
-  rateLimitPerMinute?: number;
+  throttle?: ThrottleConfig | null;
   config?: Record<string, any>;
   fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
   useStaticIp?: boolean;
@@ -210,7 +232,7 @@ export async function createDestination(data: {
     authType: data.authType || (destType === 'http' ? 'none' : undefined),
     authConfig: data.authConfig,
     timeoutMs: data.timeoutMs || 30000,
-    rateLimitPerMinute: data.rateLimitPerMinute,
+    throttle: data.throttle,
     config: data.config,
     fieldMapping: data.fieldMapping,
     useStaticIp: data.useStaticIp,
@@ -229,7 +251,7 @@ export async function updateDestination(
     authType?: string;
     authConfig?: Record<string, string>;
     timeoutMs?: number;
-    rateLimitPerMinute?: number;
+    throttle?: ThrottleConfig | null;
     isActive?: boolean;
     config?: Record<string, any>;
     fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;

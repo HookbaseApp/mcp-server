@@ -5,6 +5,26 @@
 import { z } from 'zod';
 import * as api from '../lib/api.js';
 
+// Mirrors the API's throttle sub-schema (createDestinationSchema in api/src/routes/destinations.ts):
+// rateLimit+rateUnit are required when mode is 'rate', maxConcurrency is required when mode is
+// 'concurrency', and queueLimit is optional in both. The refine()s live on this nested object (not
+// on the top-level tool input schema) so the top level stays a plain ZodObject — server.ts reads
+// `inputSchema.shape` directly, which only exists on ZodObject, not on the ZodEffects a top-level
+// refine() would produce.
+const throttleInputSchema = z.object({
+  mode: z.enum(['off', 'rate', 'concurrency']).default('off').describe('Throttle mode: "off" (no throttling), "rate" (max requests per time unit), or "concurrency" (max concurrent in-flight requests). Requires a paid plan when not "off".'),
+  rateLimit: z.number().min(1).max(100000).nullable().optional().describe('Max requests per rateUnit. Required when mode is "rate".'),
+  rateUnit: z.enum(['second', 'minute', 'hour']).nullable().optional().describe('Time unit for rateLimit. Required when mode is "rate".'),
+  maxConcurrency: z.number().min(1).max(1000).nullable().optional().describe('Max concurrent in-flight requests. Required when mode is "concurrency".'),
+  queueLimit: z.number().min(1).max(100000).nullable().optional().describe('Optional max number of requests queued while waiting for throttle capacity to free up (either mode).'),
+})
+  .refine((data) => data.mode !== 'rate' || (data.rateLimit != null && data.rateUnit != null),
+    { message: 'rateLimit and rateUnit are required when throttle.mode is "rate"' })
+  .refine((data) => data.mode !== 'concurrency' || data.maxConcurrency != null,
+    { message: 'maxConcurrency is required when throttle.mode is "concurrency"' })
+  .optional()
+  .describe('Throttle configuration for outbound delivery rate limiting (requires a paid plan for modes other than "off").');
+
 export const destinationTools = [
   {
     name: 'hookbase_list_destinations',
@@ -58,7 +78,13 @@ export const destinationTools = [
           authType: d.authType,
           authConfig: d.authConfig,
           timeoutMs: d.timeoutMs,
-          rateLimitPerMinute: d.rateLimitPerMinute,
+          throttle: {
+            mode: d.throttleMode ?? 'off',
+            rateLimit: d.throttleRateLimit ?? null,
+            rateUnit: d.throttleRateUnit ?? null,
+            maxConcurrency: d.throttleMaxConcurrency ?? null,
+            queueLimit: d.throttleQueueLimit ?? null,
+          },
           mockMode: d.mockEnabled,
           isActive: d.isActive,
           config: d.config || null,
@@ -80,7 +106,7 @@ export const destinationTools = [
       auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type (default: none, only for http type)'),
       auth_config: z.record(z.string()).optional().describe('Auth configuration (username/password for basic, token for bearer, etc.)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
-      rate_limit_per_minute: z.number().optional().describe('Maximum requests per minute'),
+      throttle: throttleInputSchema,
       config: z.record(z.any()).optional().describe('Warehouse configuration object. For S3: {bucket, region, accessKeyId, secretAccessKey, prefix?, fileFormat?, partitionBy?}. For R2: {bucket, prefix?, fileFormat?, partitionBy?}. For GCS: {bucket, projectId, serviceAccountKey, prefix?, fileFormat?, partitionBy?}. For Azure Blob: {accountName, accountKey, containerName, prefix?, fileFormat?, partitionBy?}.'),
       field_mapping: z.array(z.object({
         source: z.string().describe('Source field path in the webhook payload'),
@@ -101,7 +127,13 @@ export const destinationTools = [
       auth_type?: 'none' | 'basic' | 'bearer' | 'api_key' | 'custom_header';
       auth_config?: Record<string, string>;
       timeout_ms?: number;
-      rate_limit_per_minute?: number;
+      throttle?: {
+        mode: 'off' | 'rate' | 'concurrency';
+        rateLimit?: number | null;
+        rateUnit?: 'second' | 'minute' | 'hour' | null;
+        maxConcurrency?: number | null;
+        queueLimit?: number | null;
+      };
       config?: Record<string, any>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
       use_static_ip?: boolean;
@@ -117,7 +149,7 @@ export const destinationTools = [
         authType: args.auth_type,
         authConfig: args.auth_config,
         timeoutMs: args.timeout_ms,
-        rateLimitPerMinute: args.rate_limit_per_minute,
+        throttle: args.throttle,
         config: args.config,
         fieldMapping: args.field_mapping,
         useStaticIp: args.use_static_ip,
@@ -152,7 +184,7 @@ export const destinationTools = [
       auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type'),
       auth_config: z.record(z.string()).optional().describe('Auth configuration'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds'),
-      rate_limit_per_minute: z.number().optional().describe('Maximum requests per minute'),
+      throttle: throttleInputSchema,
       is_active: z.boolean().optional().describe('Enable or disable the destination'),
       config: z.record(z.any()).optional().describe('Warehouse configuration object (for warehouse type destinations)'),
       field_mapping: z.array(z.object({
@@ -174,7 +206,13 @@ export const destinationTools = [
       auth_type?: string;
       auth_config?: Record<string, string>;
       timeout_ms?: number;
-      rate_limit_per_minute?: number;
+      throttle?: {
+        mode: 'off' | 'rate' | 'concurrency';
+        rateLimit?: number | null;
+        rateUnit?: 'second' | 'minute' | 'hour' | null;
+        maxConcurrency?: number | null;
+        queueLimit?: number | null;
+      };
       is_active?: boolean;
       config?: Record<string, any>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
@@ -190,7 +228,7 @@ export const destinationTools = [
         authType: args.auth_type,
         authConfig: args.auth_config,
         timeoutMs: args.timeout_ms,
-        rateLimitPerMinute: args.rate_limit_per_minute,
+        throttle: args.throttle,
         isActive: args.is_active,
         config: args.config,
         fieldMapping: args.field_mapping,

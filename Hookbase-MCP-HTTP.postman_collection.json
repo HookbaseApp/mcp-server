@@ -1,0 +1,4532 @@
+{
+  "info": {
+    "_postman_id": "2afa5334-3ca1-454d-a6e0-22022a49a058",
+    "name": "Hookbase MCP — HTTP Transport",
+    "description": "Exercises the Hookbase MCP server's remote **Streamable HTTP** transport (JSON-RPC 2.0) directly, without an MCP client.\n\n- Base URL: `https://mcp.hookbase.app`. Single endpoint `POST /mcp` for all JSON-RPC calls; `GET /health` for liveness.\n- Auth: `Authorization: Bearer whr_...` (set the `api_key` collection variable). Optional multi-org disambiguation via `X-Hookbase-Org-Id` (set the `org_id` collection variable) — applied automatically by this collection's pre-request script.\n- Supported JSON-RPC methods: `initialize`, `notifications/initialized`, `notifications/cancelled`, `ping`, `tools/list`, `tools/call`. There is **no** `resources/*` or `prompts/*` support over HTTP — those only exist on the stdio transport.\n- Every tool call response wraps the tool's actual output as a JSON-encoded **string** at `result.content[0].text` (plus `result.isError`) — parse that string to get the real payload, it is not returned as raw nested JSON.\n- Folders below mirror the 123 tools exposed by `tools/list`, one example `tools/call` request per tool. Fill in the empty `*_id` collection variables after creating a resource (e.g. run \"Sources > Create Source\", then paste the returned id into `source_id`) so the rest of that folder's requests work without editing the body.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Send X-Hookbase-Org-Id on every request when org_id is set (for multi-org API keys).",
+          "const orgId = pm.collectionVariables.get('org_id');",
+          "if (orgId) {",
+          "    pm.request.headers.upsert({ key: 'X-Hookbase-Org-Id', value: orgId });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://mcp.hookbase.app",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "whr_live_your_key_here",
+      "type": "string"
+    },
+    {
+      "key": "org_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "source_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "destination_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "route_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "event_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "delivery_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "delivery_cluster_fingerprint",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tunnel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cron_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cron_group_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "filter_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transform_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "schema_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "alert_rule_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "channel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "application_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "endpoint_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subscription_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "event_type_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "message_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "redaction_policy_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "scheduled_send_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bin_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup & Transport",
+      "description": "Transport-level JSON-RPC methods implemented by the HTTP MCP handler: initialize, notifications/initialized, ping, and tools/list. There is no resources/* or prompts/* support over HTTP (those exist only in the stdio transport) — calling them here returns a -32601 Method not found error.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness probe. Returns plain-text \"ok\" with no auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Initialize",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-06-18\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "First call of a session. Negotiates protocol version and returns serverInfo/capabilities. Does not require the API key to be valid yet — auth is only checked on tools/call."
+          },
+          "response": []
+        },
+        {
+          "name": "Initialized Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"notifications/initialized\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Fire-and-forget lifecycle notification after initialize. No \"id\" field (per JSON-RPC, notifications get no response) — expect HTTP 202 with an empty body."
+          },
+          "response": []
+        },
+        {
+          "name": "Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"ping\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Basic liveness check over the JSON-RPC channel. Returns an empty result object."
+          },
+          "response": []
+        },
+        {
+          "name": "List Tools",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Enumerate all available tools with their JSON Schema input definitions. Identical response for every request (cached per isolate)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sources",
+      "description": "Webhook ingestion sources — the /ingest/:orgSlug/:sourceSlug endpoints that receive inbound webhooks.",
+      "item": [
+        {
+          "name": "hookbase_list_sources",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_sources\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all webhook sources in the organization."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_source\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single webhook source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_source\",\n    \"arguments\": {\n      \"name\": \"Stripe Events\",\n      \"slug\": \"stripe-events\",\n      \"provider\": \"stripe\",\n      \"description\": \"Incoming Stripe webhook events\",\n      \"reject_invalid_signatures\": true,\n      \"rate_limit_per_minute\": 600,\n      \"transient_mode\": false,\n      \"allowed_methods\": [\n        \"POST\"\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a new webhook ingestion source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_source\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\",\n      \"name\": \"Stripe Events (Prod)\",\n      \"is_active\": true,\n      \"rate_limit_per_minute\": 1200\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an existing webhook source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_source\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a webhook source."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Destinations",
+      "description": "Outbound delivery targets that routes forward events to (HTTP endpoints or object storage warehouses).",
+      "item": [
+        {
+          "name": "hookbase_list_destinations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_destinations\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all delivery destinations."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_destination\",\n    \"arguments\": {\n      \"destination_id\": \"{{destination_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single destination."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_destination\",\n    \"arguments\": {\n      \"name\": \"Internal API\",\n      \"type\": \"http\",\n      \"url\": \"https://internal.example.com/webhooks\",\n      \"method\": \"POST\",\n      \"headers\": {\n        \"X-Source\": \"hookbase\"\n      },\n      \"auth_type\": \"bearer\",\n      \"auth_config\": {\n        \"token\": \"replace-with-real-secret\"\n      },\n      \"timeout_ms\": 15000,\n      \"throttle\": { \"mode\": \"rate\", \"rateLimit\": 300, \"rateUnit\": \"minute\" }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a new HTTP delivery destination."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_destination\",\n    \"arguments\": {\n      \"destination_id\": \"{{destination_id}}\",\n      \"name\": \"Internal API (v2)\",\n      \"is_active\": true,\n      \"timeout_ms\": 20000\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an existing destination."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_destination\",\n    \"arguments\": {\n      \"destination_id\": \"{{destination_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a destination."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_test_destination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_test_destination\",\n    \"arguments\": {\n      \"destination_id\": \"{{destination_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Send a synthetic test event to a destination."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "description": "Rules connecting a source to a destination, with optional filters and transforms.",
+      "item": [
+        {
+          "name": "hookbase_list_routes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_routes\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all routes."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_route\",\n    \"arguments\": {\n      \"route_id\": \"{{route_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single route."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_route\",\n    \"arguments\": {\n      \"name\": \"Stripe charges to Internal API\",\n      \"source_id\": \"{{source_id}}\",\n      \"destination_id\": \"{{destination_id}}\",\n      \"filter_conditions\": {\n        \"logic\": \"AND\",\n        \"conditions\": [\n          {\n            \"field\": \"type\",\n            \"operator\": \"equals\",\n            \"value\": \"charge.succeeded\"\n          }\n        ]\n      },\n      \"priority\": 10,\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a route from a source to a destination with an inline filter."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_route\",\n    \"arguments\": {\n      \"route_id\": \"{{route_id}}\",\n      \"priority\": 20,\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a route's priority/active state."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_route\",\n    \"arguments\": {\n      \"route_id\": \"{{route_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a route."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "description": "Inbound webhook events received by sources.",
+      "item": [
+        {
+          "name": "hookbase_list_events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_events\",\n    \"arguments\": {\n      \"limit\": 25,\n      \"offset\": 0,\n      \"status\": \"delivered\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List received events, optionally filtered by source/status/date range."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_event\",\n    \"arguments\": {\n      \"event_id\": \"{{event_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single event, including its payload."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_event_debug",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_event_debug\",\n    \"arguments\": {\n      \"event_id\": \"{{event_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get a ready-to-run cURL command that replays this event's original request."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "description": "Individual delivery attempts of an event to a destination.",
+      "item": [
+        {
+          "name": "hookbase_list_deliveries",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_deliveries\",\n    \"arguments\": {\n      \"limit\": 25,\n      \"offset\": 0,\n      \"status\": \"failed\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List deliveries, optionally filtered by event/destination/status."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_delivery\",\n    \"arguments\": {\n      \"delivery_id\": \"{{delivery_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single delivery attempt."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_replay_delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_replay_delivery\",\n    \"arguments\": {\n      \"delivery_id\": \"{{delivery_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Re-send a delivery exactly as it was originally sent."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_bulk_replay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_bulk_replay\",\n    \"arguments\": {\n      \"delivery_ids\": [\n        \"{{delivery_id}}\"\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Replay up to 100 deliveries in one call."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_replay_with_edit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_replay_with_edit\",\n    \"arguments\": {\n      \"delivery_id\": \"{{delivery_id}}\",\n      \"modified_payload\": {\n        \"example\": \"edited-payload\"\n      },\n      \"headers_override\": {\n        \"X-Replay\": \"true\"\n      },\n      \"persist_transform\": false\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Replay a delivery with an edited payload, headers, or a one-off transform override."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_list_delivery_clusters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_delivery_clusters\",\n    \"arguments\": {\n      \"since_hours\": 24,\n      \"limit\": 50\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List clusters of similar failing deliveries (grouped by failure fingerprint) over a recent window."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_replay_cluster",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_replay_cluster\",\n    \"arguments\": {\n      \"fingerprint\": \"{{delivery_cluster_fingerprint}}\",\n      \"limit\": 100\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Replay every delivery in a failure cluster identified by its fingerprint."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tunnels",
+      "description": "WebSocket tunnels for forwarding webhooks to a local development machine.",
+      "item": [
+        {
+          "name": "hookbase_list_tunnels",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_tunnels\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all tunnels."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_tunnel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_tunnel\",\n    \"arguments\": {\n      \"name\": \"local-dev\",\n      \"subdomain\": \"my-app\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a new tunnel."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_tunnel_status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_tunnel_status\",\n    \"arguments\": {\n      \"tunnel_id\": \"{{tunnel_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get connection status for a tunnel."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_tunnel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_tunnel\",\n    \"arguments\": {\n      \"tunnel_id\": \"{{tunnel_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a tunnel."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron Jobs",
+      "description": "Scheduled HTTP requests fired on a cron expression.",
+      "item": [
+        {
+          "name": "hookbase_list_cron_jobs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_cron_jobs\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all cron jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_cron_job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_cron_job\",\n    \"arguments\": {\n      \"name\": \"Nightly Report\",\n      \"cron_expression\": \"0 2 * * *\",\n      \"url\": \"https://api.example.com/jobs/nightly-report\",\n      \"method\": \"POST\",\n      \"headers\": {\n        \"Content-Type\": \"application/json\"\n      },\n      \"payload\": \"{\\\"trigger\\\":\\\"cron\\\"}\",\n      \"timezone\": \"America/New_York\",\n      \"timeout_ms\": 30000,\n      \"description\": \"Runs the nightly report job\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a scheduled cron job."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_cron_job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_cron_job\",\n    \"arguments\": {\n      \"job_id\": \"{{cron_job_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single cron job."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_cron_job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_cron_job\",\n    \"arguments\": {\n      \"job_id\": \"{{cron_job_id}}\",\n      \"cron_expression\": \"0 3 * * *\",\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a cron job's schedule or active state."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_cron_job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_cron_job\",\n    \"arguments\": {\n      \"job_id\": \"{{cron_job_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a cron job."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_trigger_cron",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_trigger_cron\",\n    \"arguments\": {\n      \"job_id\": \"{{cron_job_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Manually trigger a cron job immediately, outside its schedule."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron Groups",
+      "description": "Folders for organizing cron jobs.",
+      "item": [
+        {
+          "name": "hookbase_list_cron_groups",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_cron_groups\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all cron job groups."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_cron_group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_cron_group\",\n    \"arguments\": {\n      \"group_id\": \"{{cron_group_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single cron group."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_cron_group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_cron_group\",\n    \"arguments\": {\n      \"name\": \"Reporting Jobs\",\n      \"description\": \"Scheduled reporting tasks\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a cron job group."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_cron_group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_cron_group\",\n    \"arguments\": {\n      \"group_id\": \"{{cron_group_id}}\",\n      \"sort_order\": 1,\n      \"is_collapsed\": false\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a cron group."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_cron_group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_cron_group\",\n    \"arguments\": {\n      \"group_id\": \"{{cron_group_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a cron group."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Org-wide delivery analytics.",
+      "item": [
+        {
+          "name": "hookbase_get_analytics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_analytics\",\n    \"arguments\": {\n      \"range\": \"24h\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get aggregate delivery analytics for a time range."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Filters",
+      "description": "Reusable condition sets for routing decisions.",
+      "item": [
+        {
+          "name": "hookbase_list_filters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_filters\",\n    \"arguments\": {\n      \"page\": 1,\n      \"page_size\": 20\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all filters."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_filter\",\n    \"arguments\": {\n      \"filter_id\": \"{{filter_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single filter."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_filter\",\n    \"arguments\": {\n      \"name\": \"Successful charges\",\n      \"description\": \"Only successful Stripe charges\",\n      \"conditions\": [\n        {\n          \"field\": \"type\",\n          \"operator\": \"equals\",\n          \"value\": \"charge.succeeded\"\n        }\n      ],\n      \"logic\": \"AND\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a reusable filter."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_filter\",\n    \"arguments\": {\n      \"filter_id\": \"{{filter_id}}\",\n      \"logic\": \"AND\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a filter's conditions."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_filter\",\n    \"arguments\": {\n      \"filter_id\": \"{{filter_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a filter."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transforms",
+      "description": "JSONata/JavaScript transforms applied to payloads before delivery.",
+      "item": [
+        {
+          "name": "hookbase_list_transforms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_transforms\",\n    \"arguments\": {\n      \"page\": 1,\n      \"page_size\": 20\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all transforms."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_transform\",\n    \"arguments\": {\n      \"transform_id\": \"{{transform_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single transform."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_transform\",\n    \"arguments\": {\n      \"name\": \"Flatten Stripe Event\",\n      \"code\": \"{ \\\"id\\\": id, \\\"type\\\": type, \\\"amount\\\": data.object.amount }\",\n      \"transform_type\": \"jsonata\",\n      \"input_format\": \"json\",\n      \"output_format\": \"json\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a JSONata transform."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_transform\",\n    \"arguments\": {\n      \"transform_id\": \"{{transform_id}}\",\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a transform."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_transform\",\n    \"arguments\": {\n      \"transform_id\": \"{{transform_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a transform."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_test_transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_test_transform\",\n    \"arguments\": {\n      \"code\": \"{ \\\"id\\\": id }\",\n      \"payload\": {\n        \"id\": \"evt_123\"\n      },\n      \"transform_type\": \"jsonata\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Run a transform against a sample payload without saving it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Schemas",
+      "description": "JSON Schemas used to validate inbound payloads.",
+      "item": [
+        {
+          "name": "hookbase_list_schemas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_schemas\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all schemas."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_schema\",\n    \"arguments\": {\n      \"schema_id\": \"{{schema_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single schema."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_schema\",\n    \"arguments\": {\n      \"name\": \"Charge Event\",\n      \"description\": \"Validates incoming charge events\",\n      \"json_schema\": {\n        \"type\": \"object\",\n        \"required\": [\n          \"id\",\n          \"type\"\n        ],\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"type\": {\n            \"type\": \"string\"\n          }\n        }\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a JSON Schema."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_schema\",\n    \"arguments\": {\n      \"schema_id\": \"{{schema_id}}\",\n      \"description\": \"Updated description\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a schema."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_schema\",\n    \"arguments\": {\n      \"schema_id\": \"{{schema_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a schema."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_validate_against_schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_validate_against_schema\",\n    \"arguments\": {\n      \"schema_id\": \"{{schema_id}}\",\n      \"payload\": {\n        \"id\": \"evt_123\",\n        \"type\": \"charge.succeeded\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Validate a sample payload against a saved schema."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alert Rules",
+      "description": "Rules that trigger notifications on anomalies (silence, failure rate, latency, volume, schema drift).",
+      "item": [
+        {
+          "name": "hookbase_list_alert_rules",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_alert_rules\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all alert rules."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_alert_rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_alert_rule\",\n    \"arguments\": {\n      \"rule_id\": \"{{alert_rule_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single alert rule."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_alert_rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_alert_rule\",\n    \"arguments\": {\n      \"name\": \"Source silence alert\",\n      \"trigger_type\": \"source_silence\",\n      \"trigger_config\": {\n        \"type\": \"source_silence\",\n        \"sourceId\": \"{{source_id}}\",\n        \"silenceMinutes\": 30\n      },\n      \"notification_channel_ids\": [\n        \"{{channel_id}}\"\n      ],\n      \"cooldown_minutes\": 30\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create an alert rule that fires when a source goes silent."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_alert_rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_alert_rule\",\n    \"arguments\": {\n      \"rule_id\": \"{{alert_rule_id}}\",\n      \"cooldown_minutes\": 60,\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an alert rule."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_alert_rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_alert_rule\",\n    \"arguments\": {\n      \"rule_id\": \"{{alert_rule_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete an alert rule."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_test_alert_rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_test_alert_rule\",\n    \"arguments\": {\n      \"rule_id\": \"{{alert_rule_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Fire a test notification for an alert rule."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notification Channels",
+      "description": "Destinations for alert notifications (email, Slack, webhook, Teams, PagerDuty, Discord).",
+      "item": [
+        {
+          "name": "hookbase_list_notification_channels",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_notification_channels\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all notification channels."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_notification_channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_notification_channel\",\n    \"arguments\": {\n      \"channel_id\": \"{{channel_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single notification channel."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_notification_channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_notification_channel\",\n    \"arguments\": {\n      \"name\": \"Ops Slack\",\n      \"type\": \"slack\",\n      \"config\": {\n        \"webhookUrl\": \"https://hooks.slack.com/services/REPLACE/ME/NOW\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a Slack notification channel."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_notification_channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_notification_channel\",\n    \"arguments\": {\n      \"channel_id\": \"{{channel_id}}\",\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a notification channel."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_notification_channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_notification_channel\",\n    \"arguments\": {\n      \"channel_id\": \"{{channel_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a notification channel."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Outbound — Applications",
+      "description": "Outbound webhook customers/tenants (the recipients you send events to).",
+      "item": [
+        {
+          "name": "hookbase_list_applications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_applications\",\n    \"arguments\": {\n      \"limit\": 50\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List outbound applications."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_application\",\n    \"arguments\": {\n      \"application_id\": \"{{application_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single application."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_application\",\n    \"arguments\": {\n      \"name\": \"Acme Corp\",\n      \"external_id\": \"acme-corp\",\n      \"metadata\": {\n        \"plan\": \"enterprise\"\n      },\n      \"rate_limit_per_second\": 100,\n      \"rate_limit_per_minute\": 1000,\n      \"rate_limit_per_hour\": 10000\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create an outbound application."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_application\",\n    \"arguments\": {\n      \"application_id\": \"{{application_id}}\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an application."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_application\",\n    \"arguments\": {\n      \"application_id\": \"{{application_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete an application."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Outbound — Endpoints",
+      "description": "HTTPS endpoints registered under an application to receive outbound events.",
+      "item": [
+        {
+          "name": "hookbase_list_endpoints",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_endpoints\",\n    \"arguments\": {\n      \"application_id\": \"{{application_id}}\",\n      \"limit\": 50\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List endpoints, optionally filtered by application."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_endpoint\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_endpoint\",\n    \"arguments\": {\n      \"application_id\": \"{{application_id}}\",\n      \"url\": \"https://acme.example.com/webhooks/hookbase\",\n      \"description\": \"Acme production endpoint\",\n      \"timeout_seconds\": 30,\n      \"circuit_failure_threshold\": 5,\n      \"circuit_success_threshold\": 2,\n      \"circuit_cooldown_seconds\": 60\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create an endpoint under an application (returns the signing secret once)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_endpoint\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_endpoint\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete an endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_rotate_endpoint_secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_rotate_endpoint_secret\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\",\n      \"grace_period_seconds\": 3600\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Rotate an endpoint's signing secret with a grace period."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_reset_endpoint_circuit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_reset_endpoint_circuit\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Manually close an endpoint's circuit breaker."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Outbound — Subscriptions",
+      "description": "Bindings of an endpoint to an event type, with optional filter/transform.",
+      "item": [
+        {
+          "name": "hookbase_list_subscriptions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_subscriptions\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\",\n      \"limit\": 50\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List subscriptions, optionally filtered by endpoint/event type."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_subscription\",\n    \"arguments\": {\n      \"subscription_id\": \"{{subscription_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single subscription."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_subscription\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\",\n      \"event_type_id\": \"{{event_type_id}}\",\n      \"label_filter_mode\": \"all\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Subscribe an endpoint to an event type."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_subscription\",\n    \"arguments\": {\n      \"subscription_id\": \"{{subscription_id}}\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a subscription."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_subscription\",\n    \"arguments\": {\n      \"subscription_id\": \"{{subscription_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a subscription."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Outbound — Event Types",
+      "description": "Catalog of event types (e.g. order.created) that applications can subscribe to.",
+      "item": [
+        {
+          "name": "hookbase_list_event_types",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_event_types\",\n    \"arguments\": {\n      \"limit\": 50\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List event types."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_event_type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_event_type\",\n    \"arguments\": {\n      \"event_type_id\": \"{{event_type_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single event type."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_event_type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_event_type\",\n    \"arguments\": {\n      \"name\": \"order.created\",\n      \"display_name\": \"Order Created\",\n      \"description\": \"Fires when a new order is created\",\n      \"category\": \"orders\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create an event type."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_event_type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_event_type\",\n    \"arguments\": {\n      \"event_type_id\": \"{{event_type_id}}\",\n      \"is_enabled\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update an event type."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_event_type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_event_type\",\n    \"arguments\": {\n      \"event_type_id\": \"{{event_type_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete an event type."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Outbound — Messages",
+      "description": "Individual outbound event sends and their delivery attempts.",
+      "item": [
+        {
+          "name": "hookbase_send_event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_send_event\",\n    \"arguments\": {\n      \"event_type\": \"order.created\",\n      \"payload\": {\n        \"order_id\": \"ord_123\",\n        \"total\": 49.99\n      },\n      \"application_id\": \"{{application_id}}\",\n      \"idempotency_key\": \"ord_123-created\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Send an outbound event, fanning out to every matching subscription."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_list_outbound_messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_outbound_messages\",\n    \"arguments\": {\n      \"limit\": 50,\n      \"status\": \"failed\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List outbound messages, optionally filtered by status."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_outbound_message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_outbound_message\",\n    \"arguments\": {\n      \"message_id\": \"{{message_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single outbound message."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_message_attempts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_message_attempts\",\n    \"arguments\": {\n      \"message_id\": \"{{message_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List delivery attempts for an outbound message."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_replay_message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_replay_message\",\n    \"arguments\": {\n      \"message_id\": \"{{message_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Replay an outbound message."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_outbound_stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_outbound_stats\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get aggregate outbound delivery stats."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Webhook Analytics",
+      "description": "Outbound webhook delivery analytics.",
+      "item": [
+        {
+          "name": "hookbase_get_webhook_analytics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_webhook_analytics\",\n    \"arguments\": {\n      \"time_range\": \"24h\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get org-wide outbound webhook analytics."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_webhook_endpoint_analytics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_webhook_endpoint_analytics\",\n    \"arguments\": {\n      \"endpoint_id\": \"{{endpoint_id}}\",\n      \"time_range\": \"24h\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get outbound analytics for a single endpoint."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API Keys",
+      "description": "API keys used to authenticate against the Hookbase REST API and this MCP server.",
+      "item": [
+        {
+          "name": "hookbase_list_api_keys",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_api_keys\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List all API keys (metadata only, no secrets)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_api_key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_api_key\",\n    \"arguments\": {\n      \"name\": \"CI Deploy Key\",\n      \"scopes\": [\n        \"read\",\n        \"write\"\n      ],\n      \"expires_in\": 7776000\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a new API key."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_api_key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_api_key\",\n    \"arguments\": {\n      \"key_id\": \"{{api_key_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete/revoke an API key."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs",
+      "description": "Organization audit trail.",
+      "item": [
+        {
+          "name": "hookbase_list_audit_logs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_audit_logs\",\n    \"arguments\": {\n      \"limit\": 50,\n      \"offset\": 0,\n      \"entity_type\": \"source\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List audit log entries, optionally filtered."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_list_audit_log_actions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_audit_log_actions\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List distinct action types present in the audit log (for filter UIs)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_list_audit_log_users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_audit_log_users\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List distinct users present in the audit log (for filter UIs)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Redaction Policies",
+      "description": "Rules that redact/mask/hash/remove sensitive fields from stored or delivered payloads.",
+      "item": [
+        {
+          "name": "hookbase_list_redaction_policies",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_redaction_policies\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List redaction policies, optionally filtered by source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_redaction_policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_redaction_policy\",\n    \"arguments\": {\n      \"policy_id\": \"{{redaction_policy_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single redaction policy."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_redaction_policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_redaction_policy\",\n    \"arguments\": {\n      \"name\": \"Mask card numbers\",\n      \"source_id\": null,\n      \"rules\": [\n        {\n          \"match\": {\n            \"type\": \"field_name\",\n            \"value\": \"card_number\"\n          },\n          \"action\": {\n            \"type\": \"mask\",\n            \"keepLastN\": 4\n          }\n        }\n      ],\n      \"scope\": \"both\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create an org-wide redaction policy that masks a field."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_redaction_policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_redaction_policy\",\n    \"arguments\": {\n      \"policy_id\": \"{{redaction_policy_id}}\",\n      \"name\": \"Mask card numbers\",\n      \"source_id\": null,\n      \"rules\": [\n        {\n          \"match\": {\n            \"type\": \"field_name\",\n            \"value\": \"card_number\"\n          },\n          \"action\": {\n            \"type\": \"mask\",\n            \"keepLastN\": 4\n          }\n        }\n      ],\n      \"scope\": \"both\",\n      \"is_active\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a redaction policy (full replace — all fields required)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_delete_redaction_policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_delete_redaction_policy\",\n    \"arguments\": {\n      \"policy_id\": \"{{redaction_policy_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Delete a redaction policy."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_preview_redaction_policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_preview_redaction_policy\",\n    \"arguments\": {\n      \"rules\": [\n        {\n          \"match\": {\n            \"type\": \"field_name\",\n            \"value\": \"card_number\"\n          },\n          \"action\": {\n            \"type\": \"mask\",\n            \"keepLastN\": 4\n          }\n        }\n      ],\n      \"payload\": {\n        \"card_number\": \"4242424242424242\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Preview what a set of rules would redact against a sample payload, without saving."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scheduled Sends",
+      "description": "One-off HTTP requests scheduled to fire at a future time.",
+      "item": [
+        {
+          "name": "hookbase_list_scheduled_sends",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_scheduled_sends\",\n    \"arguments\": {\n      \"status\": \"pending\",\n      \"page\": 1,\n      \"page_size\": 20\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List scheduled sends, optionally filtered by status."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_scheduled_send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_scheduled_send\",\n    \"arguments\": {\n      \"send_id\": \"{{scheduled_send_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single scheduled send."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_create_scheduled_send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_scheduled_send\",\n    \"arguments\": {\n      \"url\": \"https://api.example.com/reminders\",\n      \"scheduled_for\": \"2026-09-01T09:00:00Z\",\n      \"name\": \"Renewal reminder\",\n      \"method\": \"POST\",\n      \"payload\": {\n        \"reminder\": \"renewal\"\n      },\n      \"timezone\": \"UTC\",\n      \"max_attempts\": 3\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Schedule a one-off HTTP request for a future time."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_scheduled_send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_scheduled_send\",\n    \"arguments\": {\n      \"send_id\": \"{{scheduled_send_id}}\",\n      \"scheduled_for\": \"2026-09-02T09:00:00Z\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Update a pending scheduled send (only allowed while status is pending)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_cancel_scheduled_send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_cancel_scheduled_send\",\n    \"arguments\": {\n      \"send_id\": \"{{scheduled_send_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Cancel a pending scheduled send."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_send_scheduled_send_now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_send_scheduled_send_now\",\n    \"arguments\": {\n      \"send_id\": \"{{scheduled_send_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Fire a scheduled send immediately, ahead of its scheduled time."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bins",
+      "description": "Anonymous, unauthenticated request bins (like RequestBin/webhook.site) for quick payload inspection.",
+      "item": [
+        {
+          "name": "hookbase_create_bin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_create_bin\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Create a new request bin (rate-limited to 10/IP/day, not org-scoped)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_bin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_bin\",\n    \"arguments\": {\n      \"bin_id\": \"{{bin_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a bin, including its ingest URL."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_list_bin_events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_bin_events\",\n    \"arguments\": {\n      \"bin_id\": \"{{bin_id}}\",\n      \"limit\": 50,\n      \"offset\": 0\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List requests captured by a bin."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_bin_event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_bin_event\",\n    \"arguments\": {\n      \"bin_id\": \"{{bin_id}}\",\n      \"event_id\": \"{{event_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Get details for a single captured bin request."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_update_bin_response",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_update_bin_response\",\n    \"arguments\": {\n      \"bin_id\": \"{{bin_id}}\",\n      \"status_code\": 200,\n      \"headers\": {\n        \"Content-Type\": \"application/json\"\n      },\n      \"body\": \"{\\\"ok\\\":true}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Configure the canned response a bin sends back to callers."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
