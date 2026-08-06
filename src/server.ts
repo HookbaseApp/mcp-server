@@ -32,10 +32,13 @@ export async function createServer(): Promise<McpServer> {
   // Register each tool from the shared registry (src/tools/index.ts)
   for (const tool of allTools) {
     const schema = tool.inputSchema as z.ZodObject<Record<string, z.ZodType>>;
-    server.tool(
+    server.registerTool(
       tool.name,
-      tool.description,
-      schema.shape,
+      {
+        description: tool.description,
+        inputSchema: schema.shape,
+        annotations: tool.annotations,
+      },
       async (args) => {
         const initError = getInitError();
         if (initError) {
@@ -88,10 +91,12 @@ export async function createServer(): Promise<McpServer> {
 
   // Register prompts to help AI assistants understand capabilities
   for (const prompt of hookbasePrompts) {
-    server.prompt(
+    server.registerPrompt(
       prompt.name,
-      prompt.description,
-      prompt.argsSchema.shape,
+      {
+        description: prompt.description,
+        argsSchema: prompt.argsSchema.shape,
+      },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async (args: any) => {
         return prompt.getPrompt(args);

@@ -12,6 +12,7 @@ export const transformTools = [
   {
     name: 'hookbase_list_transforms',
     description: 'List transform definitions. Transforms reshape an event payload before delivery (JSONata, XSLT, Liquid, or JavaScript).',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       page: z.number().optional(),
       page_size: z.number().optional(),
@@ -25,6 +26,7 @@ export const transformTools = [
   {
     name: 'hookbase_get_transform',
     description: 'Get a transform definition including its source code, language, and input/output formats.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       transform_id: z.string().describe('Transform ID or slug'),
     }).strict(),
@@ -37,6 +39,7 @@ export const transformTools = [
   {
     name: 'hookbase_create_transform',
     description: 'Create a transform that reshapes payloads. The code is validated server-side before being saved. Requires the "transforms" feature on the org plan.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string(),
       slug: z.string().optional(),
@@ -71,6 +74,7 @@ export const transformTools = [
   {
     name: 'hookbase_update_transform',
     description: 'Update a transform. If `code` changes it is re-validated server-side.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       transform_id: z.string(),
       name: z.string().optional(),
@@ -106,7 +110,8 @@ export const transformTools = [
   },
   {
     name: 'hookbase_delete_transform',
-    description: 'Delete a transform. Routes referencing it will have the reference cleared.',
+    description: 'Delete a transform. Any route or subscription referencing it has the reference cleared (set to null) rather than being blocked — delivery continues, minus the transform step.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       transform_id: z.string(),
     }).strict(),
@@ -119,6 +124,7 @@ export const transformTools = [
   {
     name: 'hookbase_test_transform',
     description: 'Run a transform expression against a sample payload without saving. Useful for iterating on JSONata/XSLT/Liquid/JS code.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       code: z.string(),
       payload: z.unknown().describe('Sample payload (object/string depending on input_format)'),

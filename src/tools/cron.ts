@@ -9,6 +9,7 @@ export const cronTools = [
   {
     name: 'hookbase_list_cron_jobs',
     description: 'List all scheduled cron jobs in the organization. Cron jobs make HTTP requests on a schedule.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getCronJobs();
@@ -36,6 +37,7 @@ export const cronTools = [
   {
     name: 'hookbase_create_cron_job',
     description: 'Create a new scheduled cron job that makes HTTP requests on a schedule.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the cron job'),
       cron_expression: z.string().describe('Cron expression (e.g., "0 * * * *" for hourly, "0 0 * * *" for daily)'),
@@ -91,6 +93,7 @@ export const cronTools = [
   {
     name: 'hookbase_get_cron_job',
     description: 'Get full details for a single cron job, including schedule, target URL, headers/payload, and last/next run times.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       job_id: z.string().describe('Cron job ID'),
     }).strict(),
@@ -103,6 +106,7 @@ export const cronTools = [
   {
     name: 'hookbase_update_cron_job',
     description: 'Update a cron job. Pass only the fields you want to change. Changing cron_expression or timezone recalculates next run time.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       job_id: z.string(),
       name: z.string().optional(),
@@ -162,7 +166,8 @@ export const cronTools = [
   },
   {
     name: 'hookbase_delete_cron_job',
-    description: 'Delete a scheduled cron job.',
+    description: 'Delete a scheduled cron job and its execution history. Does not affect other cron jobs or cron groups.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       job_id: z.string().describe('The ID of the cron job to delete'),
     }).strict(),
@@ -176,7 +181,8 @@ export const cronTools = [
   },
   {
     name: 'hookbase_trigger_cron',
-    description: 'Manually trigger a cron job immediately, regardless of its schedule.',
+    description: 'Manually trigger a cron job immediately, regardless of its schedule. Runs independently of the schedule — this never delays or skips the next scheduled run, and each call makes a real HTTP request to the job\'s target URL.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       job_id: z.string().describe('The ID of the cron job to trigger'),
     }).strict(),

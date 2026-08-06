@@ -127,14 +127,14 @@ The organization is automatically detected from your API key. The result is cach
 - `hookbase_get_source` - Get source details
 - `hookbase_create_source` - Create new source
 - `hookbase_update_source` - Update source config
-- `hookbase_delete_source` - Delete a source (cascades to routes)
+- `hookbase_delete_source` - Delete a source (cascades to its routes, their deliveries, and every event ever ingested through it)
 
 #### Destinations
 - `hookbase_list_destinations` - List all destinations
 - `hookbase_get_destination` - Get destination details
 - `hookbase_create_destination` - Create new destination
 - `hookbase_update_destination` - Update destination config
-- `hookbase_delete_destination` - Delete a destination
+- `hookbase_delete_destination` - Delete a destination (cascades to its routes and their deliveries, including pending/queued ones)
 - `hookbase_test_destination` - Test destination connectivity
 
 #### Routes
@@ -142,7 +142,7 @@ The organization is automatically detected from your API key. The result is cach
 - `hookbase_get_route` - Get route details
 - `hookbase_create_route` - Create source→destination route
 - `hookbase_update_route` - Update route config
-- `hookbase_delete_route` - Delete a route
+- `hookbase_delete_route` - Delete a route (only its own delivery history; source/destination/filter/transform are untouched)
 
 #### Events
 - `hookbase_list_events` - Query events with filters
@@ -153,13 +153,16 @@ The organization is automatically detected from your API key. The result is cach
 - `hookbase_list_deliveries` - Query deliveries
 - `hookbase_get_delivery` - Get delivery details with response
 - `hookbase_replay_delivery` - Retry a failed delivery
-- `hookbase_bulk_replay` - Retry multiple failed deliveries
+- `hookbase_bulk_replay` - Retry multiple failed deliveries (up to 100 IDs)
+- `hookbase_replay_with_edit` - Replay one delivery with one-shot payload/destination/transform/header overrides
+- `hookbase_list_delivery_clusters` - List failure clusters aggregated by fingerprint (route + destination + status + normalized error)
+- `hookbase_replay_cluster` - Replay every delivery matching a cluster fingerprint in one call
 
 #### Tunnels
 - `hookbase_list_tunnels` - List localhost tunnels
 - `hookbase_create_tunnel` - Create new tunnel
 - `hookbase_get_tunnel_status` - Check tunnel connection
-- `hookbase_delete_tunnel` - Delete a tunnel
+- `hookbase_delete_tunnel` - Delete a tunnel (disconnects any live connection and its request log)
 
 #### Cron
 - `hookbase_list_cron_jobs` - List scheduled jobs

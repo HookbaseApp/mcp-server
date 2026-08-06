@@ -17,6 +17,7 @@ export const routeTools = [
     name: 'hookbase_list_routes',
     description: 'List all routes in the organization. Routes connect sources to destinations and define how webhooks are processed.',
     inputSchema: z.object({}).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     handler: async () => {
       const result = await api.getRoutes();
       if (result.error) {
@@ -45,6 +46,7 @@ export const routeTools = [
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to retrieve'),
     }).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     handler: async (args: { route_id: string }) => {
       const result = await api.getRoute(args.route_id);
       if (result.error) {
@@ -73,6 +75,7 @@ export const routeTools = [
   {
     name: 'hookbase_create_route',
     description: 'Create a new route connecting a source to a destination. Optionally add filters to control which webhooks are forwarded.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the route'),
       source_id: z.string().describe('ID of the source to receive webhooks from'),
@@ -123,7 +126,8 @@ export const routeTools = [
   },
   {
     name: 'hookbase_update_route',
-    description: 'Update an existing route configuration.',
+    description: 'Update an existing route configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to update'),
       name: z.string().optional().describe('New display name'),
@@ -161,7 +165,8 @@ export const routeTools = [
   },
   {
     name: 'hookbase_delete_route',
-    description: 'Delete a route.',
+    description: 'Delete a route and its own delivery history. This does not affect the source, destination, filter, or transform it references — only the route linkage itself is removed.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to delete'),
     }).strict(),

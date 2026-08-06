@@ -17,6 +17,7 @@ export const sourceTools = [
   {
     name: 'hookbase_list_sources',
     description: 'List all webhook sources in the organization. Sources are endpoints that receive incoming webhooks.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getSources();
@@ -42,6 +43,7 @@ export const sourceTools = [
   {
     name: 'hookbase_get_source',
     description: 'Get detailed information about a specific webhook source, including its configuration and statistics.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().describe('The ID of the source to retrieve'),
     }).strict(),
@@ -74,6 +76,7 @@ export const sourceTools = [
   {
     name: 'hookbase_create_source',
     description: 'Create a new webhook source. Sources receive incoming webhooks and can be connected to destinations via routes.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the source'),
       slug: z.string().describe('URL-safe identifier (e.g., "github-webhooks")'),
@@ -119,7 +122,8 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_update_source',
-    description: 'Update an existing webhook source configuration.',
+    description: 'Update an existing webhook source configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().describe('The ID of the source to update'),
       name: z.string().optional().describe('New display name'),
@@ -160,7 +164,8 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_delete_source',
-    description: 'Delete a webhook source. This will also delete all associated routes.',
+    description: 'Delete a webhook source. Cascades to delete its routes, their deliveries, and every event ever ingested through this source — event history is not recoverable afterward.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().describe('The ID of the source to delete'),
     }).strict(),

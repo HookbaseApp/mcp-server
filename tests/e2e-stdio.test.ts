@@ -123,6 +123,14 @@ describe('e2e stdio', () => {
     expect(result.tools.every(t => typeof t.name === 'string' && t.name.length > 0)).toBe(true);
   });
 
+  it('every tool exposes non-empty behavioral annotations via the stdio SDK transport', async () => {
+    const result = await rpc<{ tools: Array<{ name: string; annotations?: Record<string, unknown> }> }>('tools/list');
+    for (const t of result.tools) {
+      expect(t.annotations, `${t.name} is missing annotations`).toBeTypeOf('object');
+      expect(Object.keys(t.annotations ?? {}).length, `${t.name} has empty annotations`).toBeGreaterThan(0);
+    }
+  });
+
   it('lists 3 resource templates with hookbase:// URIs', async () => {
     const result = await rpc<{ resourceTemplates: Array<{ name: string; uriTemplate: string }> }>(
       'resources/templates/list'

@@ -29,6 +29,7 @@ export const destinationTools = [
   {
     name: 'hookbase_list_destinations',
     description: 'List all webhook destinations in the organization. Destinations are endpoints where webhooks are forwarded to.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getDestinations();
@@ -57,6 +58,7 @@ export const destinationTools = [
   {
     name: 'hookbase_get_destination',
     description: 'Get detailed information about a specific destination, including authentication configuration.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to retrieve'),
     }).strict(),
@@ -97,6 +99,7 @@ export const destinationTools = [
   {
     name: 'hookbase_create_destination',
     description: 'Create a new webhook destination. Destinations can be HTTP endpoints or warehouse storage (S3, R2, GCS, Azure Blob).',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the destination'),
       type: z.enum(['http', 's3', 'r2', 'gcs', 'azure_blob']).optional().describe('Destination type (default: http). Use warehouse types for storage destinations.'),
@@ -174,7 +177,8 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_update_destination',
-    description: 'Update an existing destination configuration.',
+    description: 'Update an existing destination configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to update'),
       name: z.string().optional().describe('New display name'),
@@ -244,7 +248,8 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_delete_destination',
-    description: 'Delete a destination. This will also delete all associated routes.',
+    description: 'Delete a destination. Cascades to permanently delete every route pointing at it and their deliveries — including pending/queued deliveries, not just history.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to delete'),
     }).strict(),
@@ -258,7 +263,8 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_test_destination',
-    description: 'Test connectivity to a destination by sending a test request. Returns response status and timing.',
+    description: 'Test connectivity to a destination by sending a test request. Returns response status and timing. This sends a real request to the destination\'s actual configured endpoint — it is not a dry run.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to test'),
     }).strict(),

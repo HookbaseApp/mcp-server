@@ -9,7 +9,8 @@ import * as api from '../lib/api.js';
 export const outboundMessageTools = [
   {
     name: 'hookbase_send_event',
-    description: 'Send a webhook event to all subscribed endpoints. The event is queued for delivery to matching subscriptions. Use labels for filtering which subscriptions receive the event.',
+    description: 'Send a webhook event to all subscribed endpoints. The event is queued for delivery, not sent synchronously — calls with the same idempotency_key return the original event instead of creating a duplicate. Use labels for filtering which subscriptions receive the event.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       event_type: z.string().describe('Event type name (e.g., "order.created")'),
       payload: z.unknown().describe('Event payload (any JSON-serializable data)'),
@@ -51,6 +52,7 @@ export const outboundMessageTools = [
   {
     name: 'hookbase_list_outbound_messages',
     description: 'List outbound message delivery records. Messages track the delivery status of each event to each endpoint.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       status: z.enum(['pending', 'processing', 'success', 'failed', 'exhausted']).optional().describe('Filter by delivery status'),
       event_type: z.string().optional().describe('Filter by event type name'),
@@ -102,6 +104,7 @@ export const outboundMessageTools = [
   {
     name: 'hookbase_get_outbound_message',
     description: 'Get detailed information about an outbound message delivery.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       message_id: z.string().describe('The ID of the message'),
     }).strict(),
@@ -116,6 +119,7 @@ export const outboundMessageTools = [
   {
     name: 'hookbase_get_message_attempts',
     description: 'Get the delivery attempt history for an outbound message. Shows each attempt with response details.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       message_id: z.string().describe('The ID of the message'),
     }).strict(),
@@ -140,7 +144,8 @@ export const outboundMessageTools = [
   },
   {
     name: 'hookbase_replay_message',
-    description: 'Replay a failed or exhausted message. Creates a new delivery attempt for the original event payload.',
+    description: 'Replay a failed or exhausted message. Not idempotent — creates a new message record and sends a fresh real HTTP request to the destination; repeat calls are not deduplicated.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       message_id: z.string().describe('The ID of the message to replay'),
     }).strict(),
@@ -160,6 +165,7 @@ export const outboundMessageTools = [
   {
     name: 'hookbase_get_outbound_stats',
     description: 'Get delivery statistics for outbound webhooks. Shows counts by status (pending, success, failed, etc.).',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getOutboundStats();

@@ -10,8 +10,9 @@ export const eventTools = [
   {
     name: 'hookbase_list_events',
     description: 'Query webhook events with optional filters. Events represent incoming webhooks received by sources.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
-      limit: z.number().optional().describe('Maximum number of events to return (default: 20, max: 100)'),
+      limit: z.number().optional().describe('Maximum number of events to return (default: 50; no enforced maximum, but very large values may be slow)'),
       offset: z.number().optional().describe('Number of events to skip for pagination'),
       source_id: z.string().optional().describe('Filter by source ID'),
       status: z.enum(['delivered', 'failed', 'pending', 'partial', 'no_routes']).optional().describe('Filter by delivery status'),
@@ -59,6 +60,7 @@ export const eventTools = [
   {
     name: 'hookbase_get_event',
     description: 'Get detailed information about a specific event, including the full payload and all delivery attempts.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       event_id: z.string().describe('The ID of the event to retrieve'),
     }).strict(),
@@ -98,7 +100,8 @@ export const eventTools = [
   },
   {
     name: 'hookbase_get_event_debug',
-    description: 'Generate a cURL command to replay an event for debugging purposes.',
+    description: 'Generate a cURL command that reproduces how an event originally arrived, for debugging. This is read-only — it makes no outbound calls itself. Running the generated command re-ingests the payload as a brand-new event; it does not replay or retry the original delivery (use hookbase_replay_delivery for that).',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       event_id: z.string().describe('The ID of the event to generate cURL for'),
     }).strict(),
@@ -180,7 +183,7 @@ export const eventTools = [
         eventId: e.id,
         sourceName: e.sourceName,
         curl: curlCmd,
-        note: 'This cURL command will replay the event through the ingest endpoint.',
+        note: 'Running this command re-ingests the payload as a new event; it does not replay or retry the original delivery.',
       };
     },
   },

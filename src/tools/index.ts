@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 
 import { sourceTools } from './sources.js';
 import { destinationTools } from './destinations.js';
@@ -39,6 +40,8 @@ export interface HookbaseTool {
   description: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   inputSchema: z.ZodObject<any>;
+  /** Behavioral hints (readOnlyHint, destructiveHint, idempotentHint, openWorldHint) per the MCP spec. */
+  annotations?: ToolAnnotations;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (args: any) => Promise<unknown>;
 }

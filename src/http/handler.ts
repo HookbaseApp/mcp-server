@@ -46,13 +46,20 @@ interface JsonRpcRequest extends JsonRpcId {
 const toolByName = new Map<string, HookbaseTool>(allTools.map((t) => [t.name, t]));
 
 // tools/list is identical for every request — build it once per isolate.
-let toolListCache: Array<{ name: string; description: string; inputSchema: unknown }> | null = null;
+let toolListCache:
+  | Array<{ name: string; description: string; inputSchema: unknown; annotations?: unknown }>
+  | null = null;
 function toolList() {
   if (!toolListCache) {
     toolListCache = allTools.map((t) => {
       const schema = zodToJsonSchema(t.inputSchema, { target: 'jsonSchema7' }) as Record<string, unknown>;
       delete schema.$schema;
-      return { name: t.name, description: t.description, inputSchema: schema };
+      return {
+        name: t.name,
+        description: t.description,
+        inputSchema: schema,
+        ...(t.annotations ? { annotations: t.annotations } : {}),
+      };
     });
   }
   return toolListCache;

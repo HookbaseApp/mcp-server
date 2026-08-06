@@ -9,8 +9,9 @@ export const deliveryTools = [
   {
     name: 'hookbase_list_deliveries',
     description: 'Query webhook deliveries with optional filters. Deliveries represent attempts to forward webhooks to destinations.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
-      limit: z.number().optional().describe('Maximum number of deliveries to return (default: 20, max: 100)'),
+      limit: z.number().optional().describe('Maximum number of deliveries to return (default: 50; no enforced maximum, but very large values may be slow)'),
       offset: z.number().optional().describe('Number of deliveries to skip for pagination'),
       event_id: z.string().optional().describe('Filter by event ID'),
       destination_id: z.string().optional().describe('Filter by destination ID'),
@@ -56,6 +57,7 @@ export const deliveryTools = [
   {
     name: 'hookbase_get_delivery',
     description: 'Get detailed information about a specific delivery, including the response body and error details.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       delivery_id: z.string().describe('The ID of the delivery to retrieve'),
     }).strict(),
@@ -88,7 +90,8 @@ export const deliveryTools = [
   },
   {
     name: 'hookbase_replay_delivery',
-    description: 'Retry a failed delivery. This will re-send the original webhook payload to the destination.',
+    description: 'Retry a failed delivery. This will re-send the original webhook payload to the destination. Not idempotent — each call sends a fresh real HTTP request and creates a new delivery record; retries are not deduplicated. Use hookbase_bulk_replay to retry many deliveries at once.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       delivery_id: z.string().describe('The ID of the delivery to replay'),
     }).strict(),
@@ -107,7 +110,8 @@ export const deliveryTools = [
   },
   {
     name: 'hookbase_bulk_replay',
-    description: 'Retry multiple failed deliveries at once. Useful for recovering from destination outages.',
+    description: 'Retry multiple failed deliveries at once. Useful for recovering from destination outages. Accepts up to 100 delivery IDs per call (errors above that); use hookbase_replay_delivery for a single delivery.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       delivery_ids: z.array(z.string()).min(1).max(100).describe('Array of delivery IDs to replay'),
     }).strict(),
@@ -130,6 +134,7 @@ export const deliveryTools = [
       'a wrong destination URL, or a missing header without permanently changing the route. Set persist_transform=true ' +
       'to save the new transform code to the route after a successful replay. Always replay one delivery first as a probe ' +
       'before bulk replays — the response includes the new delivery ID so you can poll its status.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       delivery_id: z.string().describe('The ID of the original failed delivery to replay'),
       modified_payload: z.unknown().optional().describe('Edited payload to use instead of the original event payload'),
@@ -184,6 +189,7 @@ export const deliveryTools = [
       'List recent failure clusters — distinct failure patterns aggregated by fingerprint (route + destination + status + normalized error). ' +
       'Use this as the entry point when investigating an incident: one cluster row = one root cause, regardless of how many deliveries failed. ' +
       'Returns up to 100 clusters in the chosen time window.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       since_hours: z.number().int().min(1).max(24 * 30).optional().describe('Window in hours (default 24, max 720 / 30 days)'),
       limit: z.number().int().min(1).max(200).optional().describe('Max clusters to return (default 50)'),
@@ -232,6 +238,7 @@ export const deliveryTools = [
       'Same override shape as hookbase_replay_with_edit. Use this after diagnosing a cluster with hookbase_list_delivery_clusters ' +
       'and probing the fix on a single delivery with hookbase_replay_with_edit. ' +
       'persist_transform requires every delivery in the cluster to share a single route.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       fingerprint: z.string().describe('The cluster fingerprint hash returned by hookbase_list_delivery_clusters'),
       destination_override: z.string().optional(),

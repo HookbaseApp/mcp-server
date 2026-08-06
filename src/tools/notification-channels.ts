@@ -11,6 +11,7 @@ export const notificationChannelTools = [
   {
     name: 'hookbase_list_notification_channels',
     description: 'List notification channels (email, Slack, webhook, Teams, PagerDuty, Discord). Sensitive fields like webhook URLs and PagerDuty routing keys are masked in the response.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getNotificationChannels();
@@ -21,6 +22,7 @@ export const notificationChannelTools = [
   {
     name: 'hookbase_get_notification_channel',
     description: 'Get a single notification channel. Sensitive fields are masked in the response.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       channel_id: z.string(),
     }).strict(),
@@ -41,6 +43,7 @@ export const notificationChannelTools = [
       '- pagerduty: { routingKey, severity? }\n' +
       '- webhook: { url, secret? } (signed with HMAC-SHA256 if secret provided)\n' +
       'Requires the "notification_channels" feature on the org plan; admin or owner role required.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().max(100),
       type: channelTypeEnum,
@@ -58,7 +61,8 @@ export const notificationChannelTools = [
   },
   {
     name: 'hookbase_update_notification_channel',
-    description: 'Update a notification channel. Pass any subset of name/config/is_active. Replacing config requires the same shape as create.',
+    description: 'Update a notification channel. Pass any subset of name/config/is_active. Replacing config requires the same shape as create. Requires admin or owner role.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       channel_id: z.string(),
       name: z.string().max(100).optional(),
@@ -82,7 +86,8 @@ export const notificationChannelTools = [
   },
   {
     name: 'hookbase_delete_notification_channel',
-    description: 'Delete a notification channel. Alert rules referencing it will lose this channel from their notification list.',
+    description: 'Delete a notification channel. Requires admin or owner role. Alert rules that still reference it are not updated — they silently skip the deleted channel when they fire, rather than erroring.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       channel_id: z.string(),
     }).strict(),

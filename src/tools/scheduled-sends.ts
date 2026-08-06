@@ -11,6 +11,7 @@ export const scheduledSendTools = [
   {
     name: 'hookbase_list_scheduled_sends',
     description: 'List one-shot scheduled HTTP sends. Optionally filter by status (pending | sending | sent | failed | cancelled). Paginated.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       status: statusEnum.optional(),
       page: z.number().int().min(1).optional(),
@@ -29,6 +30,7 @@ export const scheduledSendTools = [
   {
     name: 'hookbase_get_scheduled_send',
     description: 'Get a single scheduled send including its current status, response, and error info.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({ send_id: z.string() }).strict(),
     handler: async (args: { send_id: string }) => {
       const result = await api.getScheduledSend(args.send_id);
@@ -40,6 +42,7 @@ export const scheduledSendTools = [
     name: 'hookbase_create_scheduled_send',
     description:
       'Schedule a one-shot HTTP request to fire at a future time. URL must be http or https. scheduled_for must be a future ISO-8601 timestamp. Default method POST. headers and payload are arbitrary objects (JSON-encoded server-side).',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       url: z.string().url(),
       scheduled_for: z.string().describe('ISO-8601 timestamp; must be in the future'),
@@ -80,6 +83,7 @@ export const scheduledSendTools = [
   {
     name: 'hookbase_update_scheduled_send',
     description: 'Update a scheduled send. Only allowed while status is "pending". Pass any subset of fields to change.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       send_id: z.string(),
       name: z.string().max(200).optional(),
@@ -121,7 +125,8 @@ export const scheduledSendTools = [
   },
   {
     name: 'hookbase_cancel_scheduled_send',
-    description: 'Cancel a pending or failed scheduled send. Sent or already-cancelled sends cannot be cancelled.',
+    description: 'Cancel a pending or failed scheduled send. Not idempotent — sent or already-cancelled sends cannot be cancelled again; calling this a second time on the same send returns an error, not a no-op.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({ send_id: z.string() }).strict(),
     handler: async (args: { send_id: string }) => {
       const result = await api.cancelScheduledSend(args.send_id);
@@ -131,7 +136,8 @@ export const scheduledSendTools = [
   },
   {
     name: 'hookbase_send_scheduled_send_now',
-    description: 'Trigger a pending or failed scheduled send immediately, bypassing its scheduled_for time. Returns the live HTTP response status and latency.',
+    description: 'Trigger a pending or failed scheduled send immediately, bypassing its scheduled_for time. Not idempotent — makes a real synchronous HTTP request to the destination on every call; already-sent items can\'t be re-triggered.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({ send_id: z.string() }).strict(),
     handler: async (args: { send_id: string }) => {
       const result = await api.sendScheduledSendNow(args.send_id);

@@ -9,6 +9,7 @@ export const analyticsTools = [
   {
     name: 'hookbase_get_analytics',
     description: 'Get dashboard analytics and metrics for the organization, including event counts, delivery success rates, and top sources/destinations.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       range: z.enum(['1h', '24h', '7d', '30d']).optional().describe('Time range for analytics (default: 24h)'),
     }).strict(),

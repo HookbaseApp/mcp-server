@@ -23,6 +23,7 @@ export const redactionPolicyTools = [
   {
     name: 'hookbase_list_redaction_policies',
     description: 'List redaction policies for this org. Optionally filter by source_id (org-wide policies have null sourceId).',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().uuid().optional(),
     }).strict(),
@@ -35,6 +36,7 @@ export const redactionPolicyTools = [
   {
     name: 'hookbase_get_redaction_policy',
     description: 'Get a single redaction policy with its full ruleset.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({ policy_id: z.string() }).strict(),
     handler: async (args: { policy_id: string }) => {
       const result = await api.getRedactionPolicy(args.policy_id);
@@ -46,6 +48,7 @@ export const redactionPolicyTools = [
     name: 'hookbase_create_redaction_policy',
     description:
       'Create a redaction policy (admin or owner; requires the "redaction_policies" feature). Each rule has a `match` (type: path | field_name | regex_value | header, value) and `action` (type: redact | mask | hash | remove, optional keepLastN for mask). Pass source_id to scope to one source, omit/null for org-wide. scope controls when rules apply: "storage" (before R2 write), "delivery" (before forwarding), or "both" (default).',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().min(1).max(100),
       source_id: z.string().uuid().nullable().optional(),
@@ -71,6 +74,7 @@ export const redactionPolicyTools = [
   {
     name: 'hookbase_update_redaction_policy',
     description: 'Update a redaction policy. PUT semantics — pass the full policy state (name, rules, scope, isActive). Optional source_id reassigns the policy. Cache busts on save but org-wide policies (sourceId null) may take up to 5 min to propagate.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       policy_id: z.string(),
       name: z.string().min(1).max(100),
@@ -100,7 +104,8 @@ export const redactionPolicyTools = [
   },
   {
     name: 'hookbase_delete_redaction_policy',
-    description: 'Delete a redaction policy (admin or owner).',
+    description: 'Delete a redaction policy (admin or owner). Nothing else references it by foreign key, so past events keep their existing redaction audit trail — only future traffic stops being matched against this policy.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({ policy_id: z.string() }).strict(),
     handler: async (args: { policy_id: string }) => {
       const result = await api.deleteRedactionPolicy(args.policy_id);
@@ -111,6 +116,7 @@ export const redactionPolicyTools = [
   {
     name: 'hookbase_preview_redaction_policy',
     description: 'Apply a candidate ruleset to a sample payload (and optional headers) without saving. Returns the redacted payload, redacted headers, and the count of fields touched.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       rules: z.array(ruleSchema).min(1).max(50),
       payload: z.unknown(),

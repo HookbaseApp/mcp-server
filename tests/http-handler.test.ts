@@ -54,6 +54,15 @@ describe('http MCP handler', () => {
     }
   });
 
+  it('every tool exposes non-empty behavioral annotations', async () => {
+    const res = await handleMcpRequest(post({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, auth), API_URL);
+    const body = await res.json();
+    for (const t of body.result.tools) {
+      expect(t.annotations, `${t.name} is missing annotations`).toBeTypeOf('object');
+      expect(Object.keys(t.annotations).length, `${t.name} has empty annotations`).toBeGreaterThan(0);
+    }
+  });
+
   it('answers ping', async () => {
     const res = await handleMcpRequest(post({ jsonrpc: '2.0', id: 5, method: 'ping' }, auth), API_URL);
     expect((await res.json()).result).toEqual({});
