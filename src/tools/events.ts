@@ -58,6 +58,43 @@ export const eventTools = [
     },
   },
   {
+    name: 'hookbase_tail_events',
+    description: 'Poll for events newer than a previous call, for lightweight monitoring. Not a live stream (MCP tool calls are request/response, not push) - call it repeatedly, each time passing the newestReceivedAt from the prior response as since. Returns the most recent `limit` matching events at/after since, newest first; if more than `limit` new events arrived between polls, older ones within that window are omitted - poll more often or raise limit to avoid gaps. Omit since on the first call to get a starting snapshot.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: z.object({
+      source_id: z.string().optional().describe('Filter to events from this source only'),
+      since: z.string().optional().describe('ISO 8601 timestamp - only return events received at or after this time. Pass the previous response\'s newestReceivedAt to continue tailing forward. Omit for an initial snapshot of the most recent events.'),
+      limit: z.number().optional().describe('Maximum number of events to return (default 25, cap 100)'),
+    }).strict(),
+    handler: async (args: { source_id?: string; since?: string; limit?: number }) => {
+      const limit = Math.min(args.limit ?? 25, 100);
+      const result = await api.getEvents({
+        sourceId: args.source_id,
+        fromDate: args.since,
+        limit,
+      });
+      if (result.error) {
+        return { error: result.error };
+      }
+      const events = result.data?.events ?? [];
+      return {
+        events: events.map(e => ({
+          id: e.id,
+          sourceId: e.sourceId,
+          sourceName: e.sourceName,
+          eventType: e.eventType,
+          signatureValid: e.signatureValid,
+          status: e.status,
+          deliveryCount: e.deliveryStats?.total ?? 0,
+          receivedAt: e.receivedAt,
+        })),
+        // Events come back newest-first; pass this as `since` on the next call to continue tailing.
+        newestReceivedAt: events[0]?.receivedAt ?? args.since ?? null,
+        truncated: result.data?.hasMore ?? false,
+      };
+    },
+  },
+  {
     name: 'hookbase_get_event',
     description: 'Get detailed information about a specific event, including the full payload and all delivery attempts.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

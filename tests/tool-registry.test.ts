@@ -23,6 +23,7 @@ import { redactionPolicyTools } from '../src/tools/redaction-policies.js';
 import { scheduledSendTools } from '../src/tools/scheduled-sends.js';
 import { webhookAnalyticsTools } from '../src/tools/webhook-analytics.js';
 import { binTools } from '../src/tools/bins.js';
+import { signatureTools } from '../src/tools/signature.js';
 import { allTools as sharedRegistry } from '../src/tools/index.js';
 
 const allTools = [
@@ -49,6 +50,7 @@ const allTools = [
   ...redactionPolicyTools,
   ...scheduledSendTools,
   ...binTools,
+  ...signatureTools,
 ];
 
 describe('tool registry', () => {

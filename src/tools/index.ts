@@ -33,6 +33,7 @@ import { redactionPolicyTools } from './redaction-policies.js';
 import { scheduledSendTools } from './scheduled-sends.js';
 import { webhookAnalyticsTools } from './webhook-analytics.js';
 import { binTools } from './bins.js';
+import { signatureTools } from './signature.js';
 
 /** Shape every tool object conforms to. */
 export interface HookbaseTool {
@@ -74,4 +75,5 @@ export const allTools: HookbaseTool[] = [
   ...redactionPolicyTools,
   ...scheduledSendTools,
   ...binTools,
+  ...signatureTools,
 ] as HookbaseTool[];

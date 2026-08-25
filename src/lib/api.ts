@@ -143,6 +143,12 @@ export async function deleteSource(sourceId: string): Promise<ApiResponse<{ succ
   return request<{ success: boolean }>('DELETE', orgPath(`/sources/${sourceId}`));
 }
 
+// Unlike rotateWebhookEndpointSecret, sources have no grace period - the old secret stops
+// verifying immediately.
+export async function rotateSourceSecret(sourceId: string): Promise<ApiResponse<{ signingSecret: string }>> {
+  return request<{ signingSecret: string }>('POST', orgPath(`/sources/${sourceId}/rotate-secret`));
+}
+
 // ============================================================================
 // Destinations
 // ============================================================================
@@ -1965,4 +1971,38 @@ export async function updateBinResponse(
   data: { statusCode?: number; headers?: Record<string, string>; body?: string }
 ): Promise<ApiResponse<{ ok: boolean; statusCode: number; headers: Record<string, string> | null; body: string | null }>> {
   return request('PATCH', `/api/bin/${binId}/response`, data as unknown as Record<string, unknown>);
+}
+
+// ============================================================================
+// Signature Testing
+// ============================================================================
+
+export interface SignatureVerifyStep {
+  step: number;
+  name: string;
+  description: string;
+  input?: string;
+  output?: string;
+}
+
+export interface SignatureVerifyResult {
+  isValid: boolean;
+  computedSignature: string;
+  computedSignatureWithPrefix?: string;
+  timestamp?: number;
+  steps: SignatureVerifyStep[];
+}
+
+export async function verifySignature(data: {
+  provider: string;
+  payload: string;
+  secret: string;
+  signature: string;
+  timestamp?: number;
+}): Promise<ApiResponse<SignatureVerifyResult>> {
+  return request<SignatureVerifyResult>(
+    'POST',
+    orgPath('/testing/signature/verify'),
+    data as unknown as Record<string, unknown>
+  );
 }

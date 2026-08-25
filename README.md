@@ -118,7 +118,7 @@ Bind a custom domain (e.g. `mcp.hookbase.app`) in the Cloudflare dashboard; unti
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (123)
+## Available Tools (126)
 
 ### Inbound Webhooks
 
@@ -128,6 +128,7 @@ The organization is automatically detected from your API key. The result is cach
 - `hookbase_create_source` - Create new source
 - `hookbase_update_source` - Update source config
 - `hookbase_delete_source` - Delete a source (cascades to its routes, their deliveries, and every event ever ingested through it)
+- `hookbase_rotate_source_secret` - Rotate signing secret (no grace period - old secret stops working immediately)
 
 #### Destinations
 - `hookbase_list_destinations` - List all destinations
@@ -146,6 +147,7 @@ The organization is automatically detected from your API key. The result is cach
 
 #### Events
 - `hookbase_list_events` - Query events with filters
+- `hookbase_tail_events` - Poll for events newer than a previous call (lightweight monitoring, not a live stream)
 - `hookbase_get_event` - Get event with payload & deliveries
 - `hookbase_get_event_debug` - Get cURL command to replay event
 
@@ -313,6 +315,9 @@ Ephemeral, anonymous webhook collectors for ad-hoc integration testing (not org-
 - `hookbase_list_bin_events` - Paginated event list (summary)
 - `hookbase_get_bin_event` - Get a single event with full headers and body
 - `hookbase_update_bin_response` - Configure the response the bin returns to incoming requests
+
+#### Signature Testing
+- `hookbase_verify_signature` - Check whether a webhook signature matches a payload and secret, using the same logic as inbound ingest verification
 
 ## Available Resources
 

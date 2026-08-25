@@ -177,4 +177,22 @@ export const sourceTools = [
       return { message: 'Source deleted successfully' };
     },
   },
+  {
+    name: 'hookbase_rotate_source_secret',
+    description: 'Rotate the signing secret for a source. Returns the new secret (save it securely) - unlike endpoint secret rotation, there is no grace period: the old secret stops verifying signatures immediately, so update every sender using it before rotating.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    inputSchema: z.object({
+      source_id: z.string().describe('The ID of the source'),
+    }).strict(),
+    handler: async (args: { source_id: string }) => {
+      const result = await api.rotateSourceSecret(args.source_id);
+      if (result.error) {
+        return { error: result.error };
+      }
+      return {
+        message: 'Secret rotated successfully. Save the new secret now - the old one stopped working immediately.',
+        signingSecret: result.data?.signingSecret,
+      };
+    },
+  },
 ];
