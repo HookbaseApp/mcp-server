@@ -96,17 +96,6 @@ Add it as a remote MCP connector:
 - If the key belongs to **multiple organizations**, add an `X-Hookbase-Org-Id` header to pick one.
 - The endpoint is stateless (no sessions) and CORS-enabled for browser-based clients.
 
-### Deploying the remote server
-
-The remote transport is a Cloudflare Worker (`src/worker.ts`), separate from the published npm package:
-
-```bash
-npm run dev:worker      # local dev at http://localhost:8787
-npm run deploy:worker   # deploy to Cloudflare (wrangler.toml)
-```
-
-Bind a custom domain (e.g. `mcp.hookbase.app`) in the Cloudflare dashboard; until then Wrangler serves it at `https://hookbase-mcp.<subdomain>.workers.dev`.
-
 ## Configuration
 
 | Variable | Required | Description |
@@ -354,24 +343,13 @@ Once configured, you can ask Claude things like:
 - "List all endpoints that have their circuit breaker open"
 - "Get delivery statistics for outbound webhooks"
 
-## Testing the Server
+## Debugging with the MCP Inspector
 
-Three ways to verify the server end-to-end without wiring it into a client:
+Want to try the tools out before wiring the server into a client? The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) opens a browser UI where you can list and call tools and read resources against your real org:
 
-### Interactive (MCP Inspector)
 ```bash
-HOOKBASE_API_KEY=whr_... npm run inspect
+HOOKBASE_API_KEY=whr_... npx -y @modelcontextprotocol/inspector npx -y @hookbase/mcp-server
 ```
-Opens a browser UI where you can list/call tools, read resources, and run prompts against your real org.
-
-### Stdio smoke test
-```bash
-HOOKBASE_API_KEY=whr_... npm run smoke
-```
-Spawns the built server, runs `initialize` → `tools/list` → `resources/templates/list` → `prompts/list`, and prints counts. Useful in CI for catching wiring regressions.
-
-### End-to-end vitest
-`tests/e2e-stdio.test.ts` spawns `dist/index.js` over real stdio with a pre-seeded config cache (no API call required) and verifies the protocol handshake and registry sizes. Runs as part of `npm test`.
 
 ## Troubleshooting
 
