@@ -1437,6 +1437,8 @@ export interface EventType {
   isDeprecated?: boolean | number;
   deprecatedAt?: string | null;
   deprecatedMessage?: string | null;
+  isPublic?: boolean | number;
+  publishedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   subscriptionCount?: number;
@@ -1500,6 +1502,7 @@ export async function updateEventType(
     isEnabled?: boolean;
     isDeprecated?: boolean;
     deprecatedMessage?: string;
+    isPublic?: boolean;
   }
 ): Promise<ApiResponse<{ data: EventType }>> {
   return request<{ data: EventType }>('PATCH', orgPath(`/event-types/${eventTypeId}`), data);
@@ -2005,4 +2008,264 @@ export async function verifySignature(data: {
     orgPath('/testing/signature/verify'),
     data as unknown as Record<string, unknown>
   );
+}
+
+// ============================================================================
+// API Pollers
+// ============================================================================
+
+export interface ApiPoller {
+  id: string;
+  sourceId: string;
+  name: string;
+  description: string | null;
+  url: string;
+  httpMethod: string;
+  headers: Record<string, string> | null;
+  responsePath: string | null;
+  idField: string;
+  eventTypeField: string | null;
+  defaultEventType: string;
+  cronExpression: string;
+  timezone: string;
+  isActive: boolean;
+  lastPolledAt: string | null;
+  nextPollAt: string | null;
+  lastStatus: string | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+  newItemsLastRun: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiPollerTriggerResult {
+  status: 'ok' | 'error';
+  newItems: number;
+  error?: string;
+}
+
+export async function getApiPollers(): Promise<ApiResponse<{ apiPollers: ApiPoller[] }>> {
+  return request<{ apiPollers: ApiPoller[] }>('GET', orgPath('/api-pollers'));
+}
+
+export async function getApiPoller(pollerId: string): Promise<ApiResponse<{ apiPoller: ApiPoller }>> {
+  return request<{ apiPoller: ApiPoller }>('GET', orgPath(`/api-pollers/${pollerId}`));
+}
+
+export async function createApiPoller(data: {
+  name: string;
+  description?: string | null;
+  sourceId: string;
+  url: string;
+  httpMethod?: string;
+  headers?: Record<string, string> | null;
+  responsePath?: string | null;
+  idField?: string;
+  eventTypeField?: string | null;
+  defaultEventType?: string;
+  cronExpression: string;
+  timezone?: string;
+  isActive?: boolean;
+}): Promise<ApiResponse<{ apiPoller: ApiPoller }>> {
+  return request<{ apiPoller: ApiPoller }>('POST', orgPath('/api-pollers'), data);
+}
+
+export async function updateApiPoller(
+  pollerId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    sourceId?: string;
+    url?: string;
+    httpMethod?: string;
+    headers?: Record<string, string> | null;
+    responsePath?: string | null;
+    idField?: string;
+    eventTypeField?: string | null;
+    defaultEventType?: string;
+    cronExpression?: string;
+    timezone?: string;
+    isActive?: boolean;
+  }
+): Promise<ApiResponse<{ apiPoller: ApiPoller }>> {
+  return request<{ apiPoller: ApiPoller }>('PATCH', orgPath(`/api-pollers/${pollerId}`), data);
+}
+
+export async function deleteApiPoller(pollerId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', orgPath(`/api-pollers/${pollerId}`));
+}
+
+export async function triggerApiPoller(pollerId: string): Promise<ApiResponse<{ result: ApiPollerTriggerResult }>> {
+  return request<{ result: ApiPollerTriggerResult }>('POST', orgPath(`/api-pollers/${pollerId}/trigger`));
+}
+
+// ============================================================================
+// Operational Webhooks
+// (meta-webhooks that notify a customer's application of delivery-health events)
+// ============================================================================
+
+export interface OperationalWebhook {
+  id: string;
+  url: string;
+  secretPrefix?: string;
+  secret?: string; // only present once, from createOperationalWebhook
+  description: string | null;
+  onMessageExhausted: boolean;
+  onCircuitBreakerOpen: boolean;
+  onCircuitBreakerClose: boolean;
+  onEndpointDisabled: boolean;
+  onEndpointCreated: boolean;
+  onEndpointUpdated: boolean;
+  onEndpointDeleted: boolean;
+  isEnabled: boolean;
+  totalSent?: number;
+  totalFailed?: number;
+  lastSentAt?: string | null;
+  lastError?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface OperationalWebhookLog {
+  id: string;
+  eventType: string;
+  status: string;
+  responseStatus: number | null;
+  errorMessage: string | null;
+  durationMs: number | null;
+  createdAt: string;
+  completedAt: string | null;
+  payload: string;
+}
+
+function opWebhookPath(applicationId: string, suffix = ''): string {
+  return orgPath(`/applications/${applicationId}/operational-webhooks${suffix}`);
+}
+
+export async function getOperationalWebhooks(
+  applicationId: string
+): Promise<ApiResponse<{ data: OperationalWebhook[] }>> {
+  return request<{ data: OperationalWebhook[] }>('GET', opWebhookPath(applicationId));
+}
+
+export async function getOperationalWebhook(
+  applicationId: string,
+  webhookId: string
+): Promise<ApiResponse<{ data: OperationalWebhook }>> {
+  return request<{ data: OperationalWebhook }>('GET', opWebhookPath(applicationId, `/${webhookId}`));
+}
+
+export async function createOperationalWebhook(
+  applicationId: string,
+  data: {
+    url: string;
+    description?: string;
+    onMessageExhausted?: boolean;
+    onCircuitBreakerOpen?: boolean;
+    onCircuitBreakerClose?: boolean;
+    onEndpointDisabled?: boolean;
+    onEndpointCreated?: boolean;
+    onEndpointUpdated?: boolean;
+    onEndpointDeleted?: boolean;
+  }
+): Promise<ApiResponse<{ data: OperationalWebhook; warning: string }>> {
+  return request<{ data: OperationalWebhook; warning: string }>('POST', opWebhookPath(applicationId), data);
+}
+
+export async function updateOperationalWebhook(
+  applicationId: string,
+  webhookId: string,
+  data: {
+    url?: string;
+    description?: string | null;
+    onMessageExhausted?: boolean;
+    onCircuitBreakerOpen?: boolean;
+    onCircuitBreakerClose?: boolean;
+    onEndpointDisabled?: boolean;
+    onEndpointCreated?: boolean;
+    onEndpointUpdated?: boolean;
+    onEndpointDeleted?: boolean;
+    isEnabled?: boolean;
+  }
+): Promise<ApiResponse<{ data: OperationalWebhook }>> {
+  return request<{ data: OperationalWebhook }>('PATCH', opWebhookPath(applicationId, `/${webhookId}`), data);
+}
+
+export async function deleteOperationalWebhook(
+  applicationId: string,
+  webhookId: string
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('DELETE', opWebhookPath(applicationId, `/${webhookId}`));
+}
+
+export async function getOperationalWebhookLogs(
+  applicationId: string,
+  webhookId: string,
+  limit?: number
+): Promise<ApiResponse<{ data: OperationalWebhookLog[] }>> {
+  const query = limit ? `?limit=${limit}` : '';
+  return request<{ data: OperationalWebhookLog[] }>('GET', opWebhookPath(applicationId, `/${webhookId}/logs${query}`));
+}
+
+export async function testOperationalWebhook(
+  applicationId: string,
+  webhookId: string
+): Promise<ApiResponse<{ success: boolean; sent: number; failed: number; message: string }>> {
+  return request<{ success: boolean; sent: number; failed: number; message: string }>(
+    'POST',
+    opWebhookPath(applicationId, `/${webhookId}/test`)
+  );
+}
+
+export async function rotateOperationalWebhookSecret(
+  applicationId: string,
+  webhookId: string
+): Promise<ApiResponse<{ data: { secret: string }; warning: string }>> {
+  return request<{ data: { secret: string }; warning: string }>(
+    'POST',
+    opWebhookPath(applicationId, `/${webhookId}/rotate-secret`)
+  );
+}
+
+// ============================================================================
+// Public Event Catalog
+// (unauthenticated docs surface — any org's published event types, looked up by org slug)
+// ============================================================================
+
+export interface PublicCatalogEventTypeSummary {
+  name: string;
+  displayName: string | null;
+  description: string | null;
+  category: string | null;
+  hasSchema: boolean;
+  schemaVersion: number | null;
+  hasExamplePayload: boolean;
+  documentationUrl: string | null;
+  publishedAt: string | null;
+}
+
+export interface PublicCatalogEventTypeDetail {
+  name: string;
+  displayName: string | null;
+  description: string | null;
+  category: string | null;
+  schema: unknown;
+  schemaVersion: number | null;
+  examplePayload: unknown;
+  documentationUrl: string | null;
+  publishedAt: string | null;
+}
+
+export async function getPublicCatalog(
+  orgSlug: string
+): Promise<ApiResponse<{ organization: { name: string; slug: string }; eventTypes: PublicCatalogEventTypeSummary[] }>> {
+  return request('GET', `/api/event-catalog/${orgSlug}`);
+}
+
+export async function getPublicCatalogEventType(
+  orgSlug: string,
+  eventTypeName: string
+): Promise<ApiResponse<{ organization: { name: string; slug: string }; eventType: PublicCatalogEventTypeDetail }>> {
+  return request('GET', `/api/event-catalog/${orgSlug}/${eventTypeName}`);
 }

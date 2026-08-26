@@ -107,7 +107,7 @@ Add it as a remote MCP connector:
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (126)
+## Available Tools (142)
 
 ### Inbound Webhooks
 
@@ -169,6 +169,15 @@ The organization is automatically detected from your API key. The result is cach
 - `hookbase_create_cron_group` - Create a cron group
 - `hookbase_update_cron_group` - Rename / reorder / collapse a group
 - `hookbase_delete_cron_group` - Delete a group (jobs become ungrouped)
+
+#### API Pollers
+For upstream APIs that only expose a REST endpoint to poll (no webhooks) — re-emits new/changed items as inbound events.
+- `hookbase_list_api_pollers` - List API pollers
+- `hookbase_get_api_poller` - Get a single poller
+- `hookbase_create_api_poller` - Create a poller (schedule + target URL + response parsing)
+- `hookbase_update_api_poller` - Update a poller
+- `hookbase_delete_api_poller` - Delete a poller
+- `hookbase_trigger_api_poller` - Manually run a poller immediately
 
 #### Analytics
 - `hookbase_get_analytics` - Get dashboard metrics
@@ -252,8 +261,13 @@ Event types define the kinds of webhooks you can send.
 - `hookbase_list_event_types` - List event type definitions
 - `hookbase_get_event_type` - Get event type with schema
 - `hookbase_create_event_type` - Create event type (e.g., "order.created")
-- `hookbase_update_event_type` - Update or deprecate event type
+- `hookbase_update_event_type` - Update, deprecate, or publish/unpublish an event type to the public catalog
 - `hookbase_delete_event_type` - Delete event type
+
+#### Public Event Catalog
+Read-only, unauthenticated docs surface for an org's published (`is_public`) event types — lets integrators browse event names/schemas without dashboard access.
+- `hookbase_get_public_catalog` - List published event types (defaults to your org; any org_slug works)
+- `hookbase_get_public_catalog_event_type` - Get schema + example payload for one published event type
 
 #### Send Events & Track Messages
 - `hookbase_send_event` - Send webhook event to subscribed endpoints
@@ -266,6 +280,17 @@ Event types define the kinds of webhooks you can send.
 #### Webhook Analytics
 - `hookbase_get_webhook_analytics` - Status counts, success rate, latency percentiles, top failing endpoints, error types, DLQ reasons, chart series
 - `hookbase_get_webhook_endpoint_analytics` - Per-endpoint stats with circuit-breaker state and recent attempts
+
+#### Operational Webhooks
+Meta-webhooks, scoped to an application, that notify you of delivery-health events (exhausted messages, circuit breaker open/close, endpoint disabled) and optionally endpoint CRUD — separate from the application's actual outbound traffic.
+- `hookbase_list_operational_webhooks` - List operational webhooks for an application
+- `hookbase_get_operational_webhook` - Get details and delivery counters
+- `hookbase_create_operational_webhook` - Create one (signing secret returned once)
+- `hookbase_update_operational_webhook` - Update URL, subscribed events, or enabled state
+- `hookbase_delete_operational_webhook` - Delete one
+- `hookbase_get_operational_webhook_logs` - Get recent delivery logs
+- `hookbase_test_operational_webhook` - Send a test event of every type
+- `hookbase_rotate_operational_webhook_secret` - Rotate signing secret (no grace period)
 
 ### Org Administration
 

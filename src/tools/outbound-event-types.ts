@@ -44,6 +44,7 @@ export const eventTypeTools = [
           category: et.category,
           isEnabled: et.isEnabled === 1 || et.isEnabled === true,
           isDeprecated: et.isDeprecated === 1 || et.isDeprecated === true,
+          isPublic: et.isPublic === 1 || et.isPublic === true,
           subscriptionCount: et.subscriptionCount,
           createdAt: et.createdAt,
         })) ?? [],
@@ -79,6 +80,8 @@ export const eventTypeTools = [
           isDeprecated: et.isDeprecated === 1 || et.isDeprecated === true,
           deprecatedAt: et.deprecatedAt,
           deprecatedMessage: et.deprecatedMessage,
+          isPublic: et.isPublic === 1 || et.isPublic === true,
+          publishedAt: et.publishedAt,
           subscriptionCount: et.subscriptionCount,
           createdAt: et.createdAt,
           updatedAt: et.updatedAt,
@@ -144,6 +147,7 @@ export const eventTypeTools = [
       is_enabled: z.boolean().optional().describe('Enable or disable the event type'),
       is_deprecated: z.boolean().optional().describe('Mark as deprecated'),
       deprecated_message: z.string().optional().describe('Message explaining deprecation'),
+      is_public: z.boolean().optional().describe('Publish (true) or unpublish (false) this event type in the public event catalog (see hookbase_get_public_catalog)'),
     }).strict(),
     handler: async (args: {
       event_type_id: string;
@@ -156,6 +160,7 @@ export const eventTypeTools = [
       is_enabled?: boolean;
       is_deprecated?: boolean;
       deprecated_message?: string;
+      is_public?: boolean;
     }) => {
       const result = await api.updateEventType(args.event_type_id, {
         displayName: args.display_name,
@@ -167,6 +172,7 @@ export const eventTypeTools = [
         isEnabled: args.is_enabled,
         isDeprecated: args.is_deprecated,
         deprecatedMessage: args.deprecated_message,
+        isPublic: args.is_public,
       });
       if (result.error) {
         return { error: result.error };

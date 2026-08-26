@@ -24,6 +24,9 @@ import { scheduledSendTools } from '../src/tools/scheduled-sends.js';
 import { webhookAnalyticsTools } from '../src/tools/webhook-analytics.js';
 import { binTools } from '../src/tools/bins.js';
 import { signatureTools } from '../src/tools/signature.js';
+import { apiPollerTools } from '../src/tools/api-pollers.js';
+import { operationalWebhookTools } from '../src/tools/operational-webhooks.js';
+import { eventCatalogTools } from '../src/tools/event-catalog.js';
 import { allTools as sharedRegistry } from '../src/tools/index.js';
 
 const allTools = [
@@ -35,6 +38,7 @@ const allTools = [
   ...tunnelTools,
   ...cronTools,
   ...cronGroupTools,
+  ...apiPollerTools,
   ...analyticsTools,
   ...filterTools,
   ...transformTools,
@@ -43,8 +47,10 @@ const allTools = [
   ...notificationChannelTools,
   ...outboundTools,
   ...eventTypeTools,
+  ...eventCatalogTools,
   ...outboundMessageTools,
   ...webhookAnalyticsTools,
+  ...operationalWebhookTools,
   ...apiKeyTools,
   ...auditLogTools,
   ...redactionPolicyTools,

@@ -34,6 +34,9 @@ import { scheduledSendTools } from './scheduled-sends.js';
 import { webhookAnalyticsTools } from './webhook-analytics.js';
 import { binTools } from './bins.js';
 import { signatureTools } from './signature.js';
+import { apiPollerTools } from './api-pollers.js';
+import { operationalWebhookTools } from './operational-webhooks.js';
+import { eventCatalogTools } from './event-catalog.js';
 
 /** Shape every tool object conforms to. */
 export interface HookbaseTool {
@@ -56,6 +59,7 @@ export const allTools: HookbaseTool[] = [
   ...tunnelTools,
   ...cronTools,
   ...cronGroupTools,
+  ...apiPollerTools,
   ...analyticsTools,
   // Routing primitives
   ...filterTools,
@@ -67,8 +71,10 @@ export const allTools: HookbaseTool[] = [
   // Outbound webhooks
   ...outboundTools,
   ...eventTypeTools,
+  ...eventCatalogTools,
   ...outboundMessageTools,
   ...webhookAnalyticsTools,
+  ...operationalWebhookTools,
   // Org administration
   ...apiKeyTools,
   ...auditLogTools,
