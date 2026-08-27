@@ -43,22 +43,20 @@ interface ResolvedOrg {
   orgSlug: string;
 }
 
-// Memoize resolution per (apiKey|apiUrl|orgOverride) for the isolate's lifetime.
+// Memoize resolution per (apiKey|apiUrl) for the isolate's lifetime.
 const orgCache = new Map<string, ResolvedOrg>();
 
 /**
  * Resolve a full Config from an API key by calling /api/auth/me. Validates the
- * key and picks the organization. When the key has multiple orgs, `orgOverride`
- * (from the `X-Hookbase-Org-Id` header) selects one; otherwise it is ambiguous.
+ * key and returns its (single) organization.
  *
- * Throws AuthError(401) for a bad key, AuthError(400) for org ambiguity.
+ * Throws AuthError(401) for a bad key.
  */
 export async function resolveConfig(
   apiKey: string,
   apiUrl: string,
-  orgOverride?: string,
 ): Promise<Config> {
-  const cacheKey = `${apiKey}|${apiUrl}|${orgOverride ?? ''}`;
+  const cacheKey = `${apiKey}|${apiUrl}`;
   const cached = orgCache.get(cacheKey);
   if (cached) {
     return { apiUrl, apiKey, orgId: cached.orgId, orgSlug: cached.orgSlug };
@@ -93,25 +91,7 @@ export async function resolveConfig(
     throw new AuthError('No organizations found for this API key', 403);
   }
 
-  let org: { id: string; name: string; slug: string };
-  if (orgOverride) {
-    const match = orgs.find((o) => o.id === orgOverride);
-    if (!match) {
-      throw new AuthError(
-        `X-Hookbase-Org-Id "${orgOverride}" is not among this key's organizations`,
-        400,
-      );
-    }
-    org = match;
-  } else if (orgs.length > 1) {
-    const list = orgs.map((o) => `${o.name} (${o.id})`).join(', ');
-    throw new AuthError(
-      `This API key belongs to multiple organizations. Set the X-Hookbase-Org-Id header to one of: ${list}`,
-      400,
-    );
-  } else {
-    org = orgs[0];
-  }
+  const org = orgs[0];
 
   orgCache.set(cacheKey, { orgId: org.id, orgSlug: org.slug });
   return { apiUrl, apiKey, orgId: org.id, orgSlug: org.slug };

@@ -24,7 +24,7 @@ const SUPPORTED_PROTOCOLS = new Set([LATEST_PROTOCOL, '2025-03-26', '2024-11-05'
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Hookbase-Org-Id, Mcp-Protocol-Version',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Mcp-Protocol-Version',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -84,7 +84,6 @@ async function dispatch(
   msg: JsonRpcRequest,
   apiKey: string,
   apiUrl: string,
-  orgOverride: string | undefined,
 ): Promise<object | null> {
   const isNotification = msg.id === undefined || msg.id === null;
 
@@ -137,7 +136,7 @@ async function dispatch(
       // Resolve org (may call /api/auth/me) only now that a tool is actually run.
       let config;
       try {
-        config = await resolveConfig(apiKey, apiUrl, orgOverride);
+        config = await resolveConfig(apiKey, apiUrl);
       } catch (error) {
         if (error instanceof AuthError) {
           return rpcError(msg.id, INVALID_PARAMS, error.message);
@@ -180,10 +179,8 @@ export async function handleMcpRequest(request: Request, apiUrl: string): Promis
   }
 
   let apiKey: string;
-  let orgOverride: string | undefined;
   try {
     apiKey = extractApiKey(request);
-    orgOverride = request.headers.get('x-hookbase-org-id')?.trim() || undefined;
   } catch (error) {
     if (error instanceof AuthError) {
       return new Response(JSON.stringify(rpcError(null, INVALID_REQUEST, error.message)), {
@@ -207,13 +204,13 @@ export async function handleMcpRequest(request: Request, apiUrl: string): Promis
       return jsonResponse(rpcError(null, INVALID_REQUEST, 'Empty batch'), 400);
     }
     const responses = (
-      await Promise.all(body.map((m) => dispatch(m as JsonRpcRequest, apiKey, apiUrl, orgOverride)))
+      await Promise.all(body.map((m) => dispatch(m as JsonRpcRequest, apiKey, apiUrl)))
     ).filter((r): r is object => r !== null);
     // All notifications → 202 with no body.
     return responses.length ? jsonResponse(responses) : new Response(null, { status: 202, headers: CORS_HEADERS });
   }
 
-  const response = await dispatch(body as JsonRpcRequest, apiKey, apiUrl, orgOverride);
+  const response = await dispatch(body as JsonRpcRequest, apiKey, apiUrl);
   if (response === null) {
     return new Response(null, { status: 202, headers: CORS_HEADERS });
   }

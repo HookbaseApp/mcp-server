@@ -4,7 +4,6 @@ describe('hookbase_get_event_debug', () => {
   beforeEach(() => {
     process.env.HOOKBASE_API_KEY = 'whr_test_key';
     process.env.HOOKBASE_API_URL = 'https://api.test.local';
-    delete process.env.HOOKBASE_ORG_ID;
     vi.resetModules();
   });
 

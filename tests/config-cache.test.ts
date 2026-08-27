@@ -15,7 +15,6 @@ beforeEach(async () => {
   process.env.XDG_CONFIG_HOME = xdgDir;
   process.env.HOOKBASE_API_KEY = TEST_KEY;
   process.env.HOOKBASE_API_URL = TEST_URL;
-  delete process.env.HOOKBASE_ORG_ID;
   delete process.env.HOOKBASE_NO_CACHE;
   originalFetch = globalThis.fetch;
 });

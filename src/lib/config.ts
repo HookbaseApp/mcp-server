@@ -4,7 +4,7 @@
  * On first run we call /api/auth/me to resolve the org for the API key.
  * To avoid paying that round-trip on every server boot, the resolved
  * {orgId, orgSlug, apiUrl} is cached at ~/.config/hookbase/mcp.json
- * keyed by a SHA-256 hash of the API key + API URL + optional org override.
+ * keyed by a SHA-256 hash of the API key + API URL.
  *
  * Cache failures are non-fatal — we always fall back to the network call.
  * Set HOOKBASE_NO_CACHE=1 to disable the cache entirely.
@@ -44,8 +44,8 @@ function cachePath(): string {
   return path.join(base, 'hookbase', 'mcp.json');
 }
 
-function cacheKey(apiKey: string, apiUrl: string, orgOverride: string | undefined): string {
-  return createHash('sha256').update(`${apiKey}|${apiUrl}|${orgOverride ?? ''}`).digest('hex');
+function cacheKey(apiKey: string, apiUrl: string): string {
+  return createHash('sha256').update(`${apiKey}|${apiUrl}`).digest('hex');
 }
 
 function cacheDisabled(): boolean {
@@ -99,8 +99,7 @@ export async function initConfig(): Promise<{ config: Config } | { error: string
     return rememberError('Invalid HOOKBASE_API_KEY format. API keys should start with "whr_".');
   }
 
-  const overrideOrgId = process.env.HOOKBASE_ORG_ID;
-  const key = cacheKey(apiKey, apiUrl, overrideOrgId);
+  const key = cacheKey(apiKey, apiUrl);
 
   // Fast path: serve from cache, skipping the /auth/me round-trip.
   const cached = await readCacheEntry(key);
@@ -133,19 +132,7 @@ export async function initConfig(): Promise<{ config: Config } | { error: string
       return rememberError('No organizations found for this API key');
     }
 
-    let org: { id: string; name: string; slug: string };
-    if (overrideOrgId) {
-      const match = data.organizations.find(o => o.id === overrideOrgId);
-      if (!match) {
-        return rememberError(`HOOKBASE_ORG_ID "${overrideOrgId}" not found among organizations for this API key`);
-      }
-      org = match;
-    } else if (data.organizations.length > 1) {
-      const orgList = data.organizations.map(o => `  - ${o.name} (${o.id})`).join('\n');
-      return rememberError(`Multiple organizations found. Set HOOKBASE_ORG_ID to one of:\n${orgList}`);
-    } else {
-      org = data.organizations[0];
-    }
+    const org = data.organizations[0];
 
     cachedConfig = { apiUrl, apiKey, orgId: org.id, orgSlug: org.slug };
     cachedInitError = null;
