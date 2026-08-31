@@ -41,6 +41,76 @@ describe('http MCP handler', () => {
     expect(body.result.serverInfo.name).toBe('hookbase');
     expect(body.result.protocolVersion).toBe('2025-06-18');
     expect(body.result.capabilities.tools).toBeDefined();
+    expect(body.result.capabilities.resources).toBeDefined();
+    expect(body.result.capabilities.prompts).toBeDefined();
+  });
+
+  it('lists every registered resource template', async () => {
+    const res = await handleMcpRequest(
+      post({ jsonrpc: '2.0', id: 1, method: 'resources/templates/list' }, auth),
+      API_URL,
+    );
+    const body = await res.json();
+    expect(body.result.resourceTemplates.length).toBeGreaterThan(0);
+    for (const t of body.result.resourceTemplates) {
+      expect(t.uriTemplate).toMatch(/^hookbase:\/\//);
+      expect(typeof t.description).toBe('string');
+    }
+  });
+
+  it('lists every registered prompt with its arguments', async () => {
+    const res = await handleMcpRequest(post({ jsonrpc: '2.0', id: 1, method: 'prompts/list' }, auth), API_URL);
+    const body = await res.json();
+    expect(body.result.prompts.length).toBeGreaterThan(0);
+    const withArgs = body.result.prompts.find((p: { name: string }) => p.name === 'send_test_event');
+    expect(withArgs.arguments).toEqual([
+      { name: 'event_type', description: 'Event type name (e.g., order.created)', required: true },
+      { name: 'application_id', description: 'Target specific application (optional)', required: false },
+    ]);
+  });
+
+  it('gets a prompt with valid arguments', async () => {
+    const res = await handleMcpRequest(
+      post(
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'prompts/get',
+          params: { name: 'send_test_event', arguments: { event_type: 'order.created' } },
+        },
+        auth,
+      ),
+      API_URL,
+    );
+    const body = await res.json();
+    expect(body.result.messages).toHaveLength(1);
+    expect(body.result.messages[0].content.text).toContain('order.created');
+  });
+
+  it('returns -32602 for an unknown prompt', async () => {
+    const res = await handleMcpRequest(
+      post({ jsonrpc: '2.0', id: 1, method: 'prompts/get', params: { name: 'hookbase_nope', arguments: {} } }, auth),
+      API_URL,
+    );
+    expect((await res.json()).error.code).toBe(-32602);
+  });
+
+  it('returns -32602 for invalid prompt arguments', async () => {
+    const res = await handleMcpRequest(
+      post({ jsonrpc: '2.0', id: 1, method: 'prompts/get', params: { name: 'send_test_event', arguments: {} } }, auth),
+      API_URL,
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(body.error.message).toContain('event_type');
+  });
+
+  it('returns -32602 for an unknown resource URI (no network)', async () => {
+    const res = await handleMcpRequest(
+      post({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: 'hookbase://not-a-real-resource' } }, auth),
+      API_URL,
+    );
+    expect((await res.json()).error.code).toBe(-32602);
   });
 
   it('lists every registered tool with an object JSON Schema', async () => {

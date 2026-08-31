@@ -7,14 +7,20 @@
  * surface that hosted clients (Claude, ChatGPT connectors) need.
  *
  * Supported methods: initialize, notifications/initialized, ping, tools/list,
- * tools/call. Auth is a `whr_` bearer key (see auth.ts); org resolution is
- * deferred until the first tools/call so initialize/tools/list stay offline.
+ * tools/call, resources/list, resources/templates/list, resources/read,
+ * prompts/list, prompts/get. Auth is a `whr_` bearer key (see auth.ts); org
+ * resolution is deferred until the first request that needs API access
+ * (tools/call, resources/list, resources/read) so initialize/tools/list/
+ * prompts stay offline.
  */
 
+import type { ZodObject, ZodRawShape } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import pkg from '../../package.json' with { type: 'json' };
 import { allTools, type HookbaseTool } from '../tools/index.js';
+import { hookbaseResources } from '../resources/index.js';
+import { hookbasePrompts } from '../prompts/index.js';
 import { runWithConfig } from '../lib/context.js';
 import { AuthError, extractApiKey, resolveConfig } from './auth.js';
 
@@ -44,6 +50,25 @@ interface JsonRpcRequest extends JsonRpcId {
 }
 
 const toolByName = new Map<string, HookbaseTool>(allTools.map((t) => [t.name, t]));
+
+interface PromptDef {
+  name: string;
+  description: string;
+  argsSchema: ZodObject<ZodRawShape>;
+  getPrompt: (args: Record<string, unknown>) => { messages: unknown[] };
+}
+const promptByName = new Map<string, PromptDef>(
+  (hookbasePrompts as PromptDef[]).map((p) => [p.name, p]),
+);
+
+/** Convert a prompt's Zod args schema into MCP's PromptArgument[] wire shape. */
+function promptArguments(schema: ZodObject<ZodRawShape>) {
+  return Object.entries(schema.shape).map(([name, field]) => ({
+    name,
+    description: field.description,
+    required: !field.isOptional(),
+  }));
+}
 
 // tools/list is identical for every request — build it once per isolate.
 let toolListCache:
@@ -97,7 +122,11 @@ async function dispatch(
       const protocolVersion = SUPPORTED_PROTOCOLS.has(requested) ? requested : LATEST_PROTOCOL;
       return rpcResult(msg.id, {
         protocolVersion,
-        capabilities: { tools: { listChanged: false } },
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { listChanged: false },
+          prompts: { listChanged: false },
+        },
         serverInfo: { name: 'hookbase', version: pkg.version },
         instructions:
           'Hookbase webhook relay. Manage sources, destinations, routes, deliveries, ' +
@@ -159,6 +188,93 @@ async function dispatch(
           isError: true,
         });
       }
+    }
+
+    case 'resources/templates/list':
+      return rpcResult(msg.id, {
+        resourceTemplates: hookbaseResources.map((r) => ({
+          name: r.name,
+          uriTemplate: r.template.uriTemplate.toString(),
+          ...r.metadata,
+        })),
+      });
+
+    case 'resources/list': {
+      let config;
+      try {
+        config = await resolveConfig(apiKey, apiUrl);
+      } catch (error) {
+        if (error instanceof AuthError) {
+          return rpcError(msg.id, INVALID_PARAMS, error.message);
+        }
+        throw error;
+      }
+      const resources = await runWithConfig(config, async () => {
+        const collected: Array<Record<string, unknown>> = [];
+        for (const def of hookbaseResources) {
+          const list = def.template.listCallback;
+          if (!list) continue;
+          const result = await list({} as never);
+          for (const resource of result.resources) {
+            collected.push({ ...def.metadata, ...resource });
+          }
+        }
+        return collected;
+      });
+      return rpcResult(msg.id, { resources });
+    }
+
+    case 'resources/read': {
+      const uriStr = msg.params?.uri as string | undefined;
+      if (!uriStr) {
+        return rpcError(msg.id, INVALID_PARAMS, 'Missing uri parameter');
+      }
+      const match = hookbaseResources
+        .map((def) => ({ def, variables: def.template.uriTemplate.match(uriStr) }))
+        .find((m) => m.variables !== null);
+      if (!match || !match.variables) {
+        return rpcError(msg.id, INVALID_PARAMS, `Resource not found: ${uriStr}`);
+      }
+      let config;
+      try {
+        config = await resolveConfig(apiKey, apiUrl);
+      } catch (error) {
+        if (error instanceof AuthError) {
+          return rpcError(msg.id, INVALID_PARAMS, error.message);
+        }
+        throw error;
+      }
+      const { def, variables } = match;
+      const result = await runWithConfig(config, () => def.read(new URL(uriStr), variables, {} as never));
+      return rpcResult(msg.id, result);
+    }
+
+    case 'prompts/list':
+      return rpcResult(msg.id, {
+        prompts: Array.from(promptByName.values()).map((p) => ({
+          name: p.name,
+          description: p.description,
+          arguments: promptArguments(p.argsSchema),
+        })),
+      });
+
+    case 'prompts/get': {
+      const name = msg.params?.name as string | undefined;
+      const args = (msg.params?.arguments as Record<string, unknown> | undefined) ?? {};
+      const prompt = name ? promptByName.get(name) : undefined;
+      if (!prompt) {
+        return rpcError(msg.id, INVALID_PARAMS, `Unknown prompt: ${name ?? '(none)'}`);
+      }
+      const parsed = prompt.argsSchema.safeParse(args);
+      if (!parsed.success) {
+        return rpcError(
+          msg.id,
+          INVALID_PARAMS,
+          `Invalid arguments for ${name}: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+        );
+      }
+      const result = prompt.getPrompt(parsed.data);
+      return rpcResult(msg.id, { description: prompt.description, ...result });
     }
 
     default:

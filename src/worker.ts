@@ -6,16 +6,33 @@
  * it with just a URL + `whr_` API key — no local install.
  *
  * Endpoints:
- *   POST /mcp   (and POST /)   — MCP JSON-RPC
- *   GET  /health               — liveness probe
+ *   POST /mcp                            — MCP JSON-RPC (and POST /)
+ *   GET  /mcp/server-card                — MCP Server Card (SEP-2127 reserved location)
+ *   GET  /.well-known/mcp/server-card.json — same document, unreserved mirror for
+ *                                            discovery tooling that looks under .well-known
+ *   GET  /health                         — liveness probe
  */
 
 import { handleMcpRequest } from './http/handler.js';
+import { handleA2aRequest } from './a2a/handler.js';
+import { buildAgentCard } from './a2a/agent-card.js';
+import { agentCardSkills } from './a2a/skills.js';
+import { buildServerCard } from './well-known/server-card.js';
+import pkg from '../package.json' with { type: 'json' };
 
 interface Env {
   /** Base URL of the Hookbase REST API the tools call. */
   HOOKBASE_API_URL?: string;
 }
+
+const SERVER_CARD_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/mcp-server-card+json',
+  'Cache-Control': 'public, max-age=3600',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET',
+  'Access-Control-Allow-Headers': 'Content-Type, If-None-Match',
+  'Access-Control-Expose-Headers': 'ETag',
+};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -27,6 +44,17 @@ export default {
     }
     if (url.pathname === '/' || url.pathname === '/mcp') {
       return handleMcpRequest(request, apiUrl);
+    }
+    if (url.pathname === '/mcp/server-card' || url.pathname === '/.well-known/mcp/server-card.json') {
+      const card = buildServerCard(`https://${url.host}`, pkg.version);
+      return new Response(JSON.stringify(card, null, 2), { headers: SERVER_CARD_HEADERS });
+    }
+    if (url.pathname === '/.well-known/agent-card.json') {
+      const card = buildAgentCard(`https://${url.host}`, pkg.version, agentCardSkills());
+      return new Response(JSON.stringify(card, null, 2), { headers: { 'Content-Type': 'application/json' } });
+    }
+    if (url.pathname === '/a2a') {
+      return handleA2aRequest(request, apiUrl);
     }
     return new Response('Not found', { status: 404 });
   },

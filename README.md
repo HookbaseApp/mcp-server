@@ -70,7 +70,7 @@ npm run build
 
 The `npx` setup above runs the server **locally over stdio** — great for Claude Desktop and Cursor, which spawn a local process. Clients that can't spawn a process (ChatGPT connectors, Claude on the web, and connector directories) need a **remote URL** instead.
 
-For those, Hookbase exposes the same tools over a stateless [Streamable HTTP](https://modelcontextprotocol.io/specification/basic/transports) endpoint. No install — just a URL and your API key:
+For those, Hookbase exposes the same tools, resources, and prompts over a stateless [Streamable HTTP](https://modelcontextprotocol.io/specification/basic/transports) endpoint. No install — just a URL and your API key:
 
 ```
 POST https://mcp.hookbase.app/mcp
@@ -93,7 +93,6 @@ Add it as a remote MCP connector:
 ```
 
 - **Auth** is your `whr_` API key as a bearer token. The organization is resolved from the key.
-- If the key belongs to **multiple organizations**, add an `X-Hookbase-Org-Id` header to pick one.
 - The endpoint is stateless (no sessions) and CORS-enabled for browser-based clients.
 
 ## Configuration
@@ -101,7 +100,6 @@ Add it as a remote MCP connector:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `HOOKBASE_API_KEY` | Yes | Your Hookbase API key (starts with `whr_`) |
-| `HOOKBASE_ORG_ID` | No | Organization ID (only needed if you have multiple orgs) |
 | `HOOKBASE_API_URL` | No | API URL override (default: https://api.hookbase.app) |
 | `HOOKBASE_NO_CACHE` | No | Set to `1` to disable the org-resolution cache |
 
@@ -383,9 +381,6 @@ Make sure your API key is set in the `env` section of your Claude Desktop config
 
 ### "Invalid API key"
 Check that your API key starts with `whr_` and is valid in the Hookbase dashboard.
-
-### "Multiple organizations found"
-If you belong to multiple organizations, add `HOOKBASE_ORG_ID` to your env config.
 
 ### Server not appearing in Claude
 1. Check the config file path is correct for your OS
