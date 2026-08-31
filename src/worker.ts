@@ -7,9 +7,12 @@
  *
  * Endpoints:
  *   POST /mcp                            — MCP JSON-RPC (and POST /)
+ *   GET  /                                — discovery info (see below; POST / still aliases /mcp)
  *   GET  /mcp/server-card                — MCP Server Card (SEP-2127 reserved location)
  *   GET  /.well-known/mcp/server-card.json — same document, unreserved mirror for
  *                                            discovery tooling that looks under .well-known
+ *   GET  /.well-known/agent-card.json     — A2A Agent Card
+ *   POST /a2a                            — A2A JSON-RPC
  *   GET  /health                         — liveness probe
  */
 
@@ -41,6 +44,22 @@ export default {
 
     if (url.pathname === '/health') {
       return new Response('ok', { headers: { 'Content-Type': 'text/plain' } });
+    }
+    // A bare 404/405 at "/" trips up crawlers/scanners that gate their whole run on the root
+    // URL responding before checking anything under /.well-known/* (mirrors the same fix in
+    // api/'s src/index.ts). POST / keeps working as an MCP JSON-RPC alias for /mcp either way.
+    if (url.pathname === '/' && request.method === 'GET') {
+      return new Response(
+        JSON.stringify({
+          name: 'Hookbase MCP',
+          mcp: `https://${url.host}/mcp`,
+          mcpServerCard: `https://${url.host}/mcp/server-card`,
+          a2a: `https://${url.host}/a2a`,
+          a2aAgentCard: `https://${url.host}/.well-known/agent-card.json`,
+          documentation: 'https://hookbase.app/docs',
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      );
     }
     if (url.pathname === '/' || url.pathname === '/mcp') {
       return handleMcpRequest(request, apiUrl);
