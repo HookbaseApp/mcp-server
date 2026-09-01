@@ -8,7 +8,7 @@ import * as api from '../lib/api.js';
 export const tunnelTools = [
   {
     name: 'hookbase_list_tunnels',
-    description: 'List all localhost tunnels in the organization. Tunnels allow forwarding webhooks to local development servers.',
+    description: 'List all localhost tunnels in the organization. A tunnel exposes a public URL that forwards webhooks to a developer\'s local machine once connected via the Hookbase CLI. This list only shows the last-known status; use hookbase_get_tunnel_status for a tunnel\'s current live connection state.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
@@ -31,7 +31,7 @@ export const tunnelTools = [
   },
   {
     name: 'hookbase_create_tunnel',
-    description: 'Create a new localhost tunnel. The tunnel can be connected using the Hookbase CLI to forward webhooks to your local server.',
+    description: 'Create a new localhost tunnel for local development — webhooks sent to the tunnel\'s public URL are forwarded to your machine once you connect with the Hookbase CLI (`hookbase tunnel connect <tunnel-id>`). Creating the tunnel only reserves the subdomain and URL; it stays disconnected until the CLI process actually connects. Use hookbase_get_tunnel_status afterward to confirm it is live.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the tunnel'),
@@ -58,7 +58,7 @@ export const tunnelTools = [
   },
   {
     name: 'hookbase_get_tunnel_status',
-    description: 'Check the connection status of a tunnel. Shows whether the tunnel is connected and live statistics.',
+    description: 'Check whether a tunnel\'s CLI connection is currently live, plus its request count and last-connected time. Use this to confirm a tunnel is actually receiving traffic after running `hookbase tunnel connect` — a tunnel can exist (hookbase_create_tunnel) without ever being connected.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       tunnel_id: z.string().describe('The ID of the tunnel to check'),
@@ -84,7 +84,7 @@ export const tunnelTools = [
   },
   {
     name: 'hookbase_delete_tunnel',
-    description: 'Delete a localhost tunnel. Force-disconnects any live connection immediately and deletes its request log.',
+    description: 'Permanently delete a localhost tunnel — force-disconnects any live CLI connection immediately, frees its subdomain for reuse, and deletes its request log. This cannot be undone; any webhooks arriving afterward will fail to reach your local server.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       tunnel_id: z.string().describe('The ID of the tunnel to delete'),

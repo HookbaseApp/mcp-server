@@ -36,16 +36,16 @@ export const cronTools = [
   },
   {
     name: 'hookbase_create_cron_job',
-    description: 'Create a new scheduled cron job that makes HTTP requests on a schedule.',
+    description: 'Create a new scheduled cron job that fires a real HTTP request on a schedule — for polling a third-party API, running a periodic health check, or triggering a downstream job. Scheduling starts immediately using cron_expression and timezone; use hookbase_update_cron_job afterward to pause it (is_active) or change the schedule, and hookbase_trigger_cron to fire one request on demand without waiting for the schedule. To organize several jobs together, create a cron group first and assign group_id via hookbase_update_cron_job.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the cron job'),
-      cron_expression: z.string().describe('Cron expression (e.g., "0 * * * *" for hourly, "0 0 * * *" for daily)'),
+      cron_expression: z.string().describe('Standard 5-field cron expression (minute hour day-of-month month day-of-week), evaluated in `timezone`. Examples: "0 * * * *" (top of every hour), "0 0 * * *" (daily at midnight), "*/15 * * * *" (every 15 minutes).'),
       url: z.string().url().describe('URL to request when the job runs'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST)'),
       headers: z.record(z.string()).optional().describe('Custom headers to include'),
       payload: z.string().optional().describe('Request body (for POST/PUT/PATCH)'),
-      timezone: z.string().optional().describe('Timezone for the schedule (default: UTC)'),
+      timezone: z.string().optional().describe('IANA timezone name (e.g. "America/New_York") that cron_expression is evaluated in (default: UTC)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
       description: z.string().optional().describe('Optional description'),
       use_static_ip: z.boolean().optional().describe('Egress this job from a dedicated static IP (Pro/Business plans only)'),
@@ -166,7 +166,7 @@ export const cronTools = [
   },
   {
     name: 'hookbase_delete_cron_job',
-    description: 'Delete a scheduled cron job and its execution history. Does not affect other cron jobs or cron groups.',
+    description: 'Permanently delete a scheduled cron job and its execution history — this cannot be undone and immediately stops all future scheduled runs. Does not affect other cron jobs or the cron group it belonged to. To pause a job temporarily without losing its configuration or history, use hookbase_update_cron_job with is_active=false instead.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       job_id: z.string().describe('The ID of the cron job to delete'),

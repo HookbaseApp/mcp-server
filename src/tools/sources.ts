@@ -16,7 +16,7 @@ const ALLOWED_METHODS_DESC =
 export const sourceTools = [
   {
     name: 'hookbase_list_sources',
-    description: 'List all webhook sources in the organization. Sources are endpoints that receive incoming webhooks.',
+    description: 'List all webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount and routeCount; use hookbase_get_source for one source\'s full configuration.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
@@ -42,7 +42,7 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_get_source',
-    description: 'Get detailed information about a specific webhook source, including its configuration and statistics.',
+    description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_rotate_source_secret if you need a fresh one (the create response is the only time the full secret is ever returned).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().describe('The ID of the source to retrieve'),
@@ -122,7 +122,7 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_update_source',
-    description: 'Update an existing webhook source configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    description: 'Update an existing source\'s configuration — name, provider, signature enforcement, rate limit, transient mode, or allowed methods. Only the fields you provide are changed; omitted fields keep their current value. Turning on reject_invalid_signatures immediately starts rejecting webhooks that fail verification; turning on transient_mode stops new payloads from being stored at rest but does not retroactively delete payloads already stored. This does not rotate the signing secret — use hookbase_rotate_source_secret for that.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       source_id: z.string().describe('The ID of the source to update'),

@@ -28,7 +28,7 @@ const throttleInputSchema = z.object({
 export const destinationTools = [
   {
     name: 'hookbase_list_destinations',
-    description: 'List all webhook destinations in the organization. Destinations are endpoints where webhooks are forwarded to.',
+    description: 'List all webhook destinations in the organization. A destination is an HTTP endpoint or warehouse sink that routes forward webhooks to — it receives nothing until hookbase_create_route connects a source to it. Returns summary fields including routeCount and success/failure counts; use hookbase_get_destination for one destination\'s full configuration including auth and throttle settings.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({}).strict(),
     handler: async () => {
@@ -57,7 +57,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_get_destination',
-    description: 'Get detailed information about a specific destination, including authentication configuration.',
+    description: 'Get full configuration for a single destination, including its URL/warehouse config, auth settings, and throttle limits. Use hookbase_list_destinations first to find the destination_id, and hookbase_test_destination afterward to verify it is actually reachable.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to retrieve'),
@@ -98,7 +98,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_create_destination',
-    description: 'Create a new webhook destination. Destinations can be HTTP endpoints or warehouse storage (S3, R2, GCS, Azure Blob).',
+    description: 'Create a new webhook destination that webhooks can be forwarded to. Destinations are either HTTP endpoints (type "http", the default) or warehouse storage sinks (S3, R2, GCS, Azure Blob) that batch events before writing them out. A destination alone receives nothing — use hookbase_create_route afterward to connect a source to it before any webhooks are actually delivered here. For type "http", url is required; for warehouse types, config is required and its shape depends on type. Use hookbase_test_destination after creating an http destination to confirm it is reachable before wiring up a route.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the destination'),
@@ -177,7 +177,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_update_destination',
-    description: 'Update an existing destination configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    description: 'Update an existing destination\'s configuration — connection details, auth, throttle limits, or warehouse settings. Only the fields you provide are changed; omitted fields keep their current value. Changes take effect on the next delivery attempt through this destination, including deliveries already queued or retrying. Set is_active=false to pause all deliveries through this destination without deleting it or the routes pointing at it.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to update'),
@@ -263,7 +263,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_test_destination',
-    description: 'Test connectivity to a destination by sending a test request. Returns response status and timing. This sends a real request to the destination\'s actual configured endpoint — it is not a dry run.',
+    description: 'Send a real test request to a destination\'s actual configured endpoint and return the response status and timing — this is not a dry run and hits whatever URL/warehouse config the destination currently has. Use it after hookbase_create_destination or hookbase_update_destination to confirm the destination is reachable before pointing a route at it.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: z.object({
       destination_id: z.string().describe('The ID of the destination to test'),

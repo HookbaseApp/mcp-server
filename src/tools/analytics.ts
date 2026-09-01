@@ -8,7 +8,7 @@ import * as api from '../lib/api.js';
 export const analyticsTools = [
   {
     name: 'hookbase_get_analytics',
-    description: 'Get dashboard analytics and metrics for the organization, including event counts, delivery success rates, and top sources/destinations.',
+    description: 'Get organization-wide dashboard metrics: event and delivery counts, delivery success rate, average response time, top sources/destinations by volume, and a delivery timeline, over the chosen time range (default 24h). This is aggregate, org-level reporting — for one endpoint\'s outbound-webhook stats use hookbase_get_webhook_endpoint_analytics, and for a single source/destination/delivery\'s own detail use hookbase_get_source / hookbase_get_destination / hookbase_get_delivery instead.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       range: z.enum(['1h', '24h', '7d', '30d']).optional().describe('Time range for analytics (default: 24h)'),

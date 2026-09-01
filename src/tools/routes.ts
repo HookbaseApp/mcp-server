@@ -15,7 +15,7 @@ const filterConditionSchema = z.object({
 export const routeTools = [
   {
     name: 'hookbase_list_routes',
-    description: 'List all routes in the organization. Routes connect sources to destinations and define how webhooks are processed.',
+    description: 'List all routes in the organization. A route connects one source to one destination and is what actually causes webhooks to be forwarded — a source and destination alone deliver nothing until a route links them. Use hookbase_get_route for one route\'s full filter/transform configuration.',
     inputSchema: z.object({}).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     handler: async () => {
@@ -42,7 +42,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_get_route',
-    description: 'Get detailed information about a specific route, including filter and transform configuration.',
+    description: 'Get full detail for a single route, including its filter, transform, and priority. Returns IDs for the source/destination/filter/transform it references — use hookbase_get_source, hookbase_get_destination, etc. to look up their own details.',
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to retrieve'),
     }).strict(),
@@ -74,7 +74,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_create_route',
-    description: 'Create a new route connecting a source to a destination. Optionally add filters to control which webhooks are forwarded.',
+    description: 'Create a new route connecting one source to one destination — this is what actually causes webhooks to be forwarded; a source and destination alone deliver nothing. The route is active immediately (is_active defaults to true) and starts matching newly incoming webhooks right away, not events already received before it existed. Optionally scope which webhooks are forwarded with filter_id (an existing, reusable filter) or filter_conditions (a one-off inline filter — pass at most one of the two), and reshape the payload in flight with transform_id. When multiple routes match the same event, priority controls delivery order (lower number = higher priority).',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the route'),
@@ -126,7 +126,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_update_route',
-    description: 'Update an existing route configuration. Only the fields you provide are changed; omitted fields keep their current value.',
+    description: 'Update an existing route\'s source, destination, filter, transform, priority, or active state. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to update'),
@@ -165,7 +165,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_delete_route',
-    description: 'Delete a route and its own delivery history. This does not affect the source, destination, filter, or transform it references — only the route linkage itself is removed.',
+    description: 'Permanently delete a route and its own delivery history — this cannot be undone. Does not affect the source, destination, filter, or transform it references, only the route linkage itself. To stop forwarding temporarily while keeping the route and its history, use hookbase_update_route with is_active=false instead.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to delete'),

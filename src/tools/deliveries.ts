@@ -8,7 +8,7 @@ import * as api from '../lib/api.js';
 export const deliveryTools = [
   {
     name: 'hookbase_list_deliveries',
-    description: 'Query webhook deliveries with optional filters. Deliveries represent attempts to forward webhooks to destinations.',
+    description: 'Query webhook deliveries with optional filters. A delivery is one attempt (including retries) to forward an already-received event to a destination through a route — use hookbase_list_events instead to inspect inbound webhooks themselves. Results are sorted newest first. Use event_id or destination_id to scope to one event\'s fan-out or one destination\'s history, or status to find deliveries needing attention (e.g. "failed" or "retrying"). Follow up on a specific row with hookbase_get_delivery for the full response body, or hookbase_replay_delivery / hookbase_bulk_replay to retry failures.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       limit: z.number().optional().describe('Maximum number of deliveries to return (default: 50; no enforced maximum, but very large values may be slow)'),
@@ -56,7 +56,7 @@ export const deliveryTools = [
   },
   {
     name: 'hookbase_get_delivery',
-    description: 'Get detailed information about a specific delivery, including the response body and error details.',
+    description: 'Get full detail for a single delivery, including the destination\'s response body/status and any error message — more than hookbase_list_deliveries returns per row. Use this to diagnose why a delivery failed before deciding whether to hookbase_replay_delivery it as-is or hookbase_replay_with_edit it with a fixed payload, header, or transform.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       delivery_id: z.string().describe('The ID of the delivery to retrieve'),

@@ -9,7 +9,7 @@ import { getConfig } from '../lib/config.js';
 export const eventTools = [
   {
     name: 'hookbase_list_events',
-    description: 'Query webhook events with optional filters. Events represent incoming webhooks received by sources.',
+    description: 'Query webhook events with optional filters. An event is one inbound webhook received by a source, before routing — use hookbase_list_deliveries instead to see outbound forwarding attempts for an event. Results are sorted newest first and support pagination via limit/offset. search matches against the event payload only, not headers. For polling new events as they arrive, use hookbase_tail_events instead of repeatedly increasing offset here. Follow up on a specific row with hookbase_get_event for the full payload and its deliveries.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       limit: z.number().optional().describe('Maximum number of events to return (default: 50; no enforced maximum, but very large values may be slow)'),
