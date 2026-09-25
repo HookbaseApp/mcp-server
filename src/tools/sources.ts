@@ -22,14 +22,20 @@ const ALLOWED_METHODS_DESC =
 // plausible name like "sendgrid" or "intercom" and get back a bare "Invalid input" 400 with no
 // indication of what would have worked. An enum puts the real answer in the tool schema.
 const SOURCE_PROVIDERS = [
+  'airtable',
+  'asana',
   'bitbucket',
+  'calendly',
   'custom',
   'generic',
   'github',
   'gitlab',
   'heroku',
+  'intercom',
   'lemonsqueezy',
+  'notion',
   'paddle',
+  'razorpay',
   'sentry',
   'shopify',
   'slack',
@@ -38,7 +44,8 @@ const SOURCE_PROVIDERS = [
   'svix',
   'twilio',
   'typeform',
-  'zoom',
+  'workos',
+  'zoom'
 ] as const;
 
 const PROVIDER_DESC =
