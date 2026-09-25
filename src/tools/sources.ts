@@ -13,6 +13,40 @@ const ALLOWED_METHODS_DESC =
   "HTTP methods this source's ingest endpoint accepts. Omit or pass [] to accept any method. " +
   'GET/HEAD/DELETE carry no body, so their query string becomes the event payload.';
 
+// Mirrors SUPPORTED_SIGNATURE_PROVIDERS in api/src/utils/signature-schemes.ts, which the API's
+// create/update schemas derive their enum from. Regenerate with
+// `npx tsx scripts/print-source-enums.ts` in the api package.
+//
+// This is an enum rather than a free string on purpose: the field used to be `z.string()`
+// described as 'e.g. "github", "stripe", "shopify"', which invites a model to supply a
+// plausible name like "sendgrid" or "intercom" and get back a bare "Invalid input" 400 with no
+// indication of what would have worked. An enum puts the real answer in the tool schema.
+const SOURCE_PROVIDERS = [
+  'bitbucket',
+  'custom',
+  'generic',
+  'github',
+  'gitlab',
+  'heroku',
+  'lemonsqueezy',
+  'paddle',
+  'sentry',
+  'shopify',
+  'slack',
+  'standard-webhooks',
+  'stripe',
+  'svix',
+  'twilio',
+  'typeform',
+  'zoom',
+] as const;
+
+const PROVIDER_DESC =
+  'Webhook provider, which selects the signature scheme used to verify incoming requests. ' +
+  'Omit it for a source that should accept unsigned requests. Use "standard-webhooks" (alias ' +
+  '"svix") for any sender built on Svix, including Resend and Clerk, and "custom" for a ' +
+  'sender that signs the raw body with HMAC-SHA256 in its own header.';
+
 export const sourceTools = [
   {
     name: 'hookbase_list_sources',
@@ -80,7 +114,7 @@ export const sourceTools = [
     inputSchema: z.object({
       name: z.string().describe('Display name for the source'),
       slug: z.string().describe('URL-safe identifier (e.g., "github-webhooks")'),
-      provider: z.string().optional().describe('Webhook provider for signature verification (e.g., "github", "stripe", "shopify")'),
+      provider: z.enum(SOURCE_PROVIDERS).optional().describe(PROVIDER_DESC),
       description: z.string().optional().describe('Optional description of the source'),
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject webhooks with invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute (rate limiting)'),
@@ -129,7 +163,7 @@ export const sourceTools = [
       name: z.string().optional().describe('New display name'),
       description: z.string().optional().describe('New description'),
       is_active: z.boolean().optional().describe('Enable or disable the source'),
-      provider: z.string().optional().describe('Update webhook provider'),
+      provider: z.enum(SOURCE_PROVIDERS).optional().describe('Change the source\'s provider. ' + PROVIDER_DESC),
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance)'),
