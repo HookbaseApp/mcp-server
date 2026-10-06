@@ -29,6 +29,11 @@ describe('buildArdManifest', () => {
     }
   });
 
+  it('carries the AI Catalog 1.0 envelope that ai-catalog.json consumers validate', () => {
+    expect(manifest.specVersion).toBe('1.0');
+    expect(manifest.host).toEqual({ identifier: 'hookbase.app', displayName: 'Hookbase' });
+  });
+
   it('anchors identifiers on the hookbase.app publisher domain', () => {
     expect(manifest.entries.map((e) => e.identifier.split(':')[2])).toEqual(['hookbase.app', 'hookbase.app']);
   });

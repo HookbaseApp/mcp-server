@@ -7,6 +7,9 @@
  *
  * Served at /.well-known/ard.json (the spec's path) and at /.well-known/ai-catalog.json, its
  * predecessor path, which the spec says consumers treat as an equivalent entry source.
+ * `specVersion` and `host` are the predecessor (AI Catalog 1.0) envelope, which consumers of
+ * ai-catalog.json validate; ARD ignores top-level members other than `entries`, so one document
+ * satisfies both.
  */
 
 export interface ArdEntry {
@@ -22,6 +25,8 @@ export interface ArdEntry {
 }
 
 export interface ArdManifest {
+  specVersion: '1.0';
+  host: { identifier: string; displayName: string };
   entries: ArdEntry[];
 }
 
@@ -31,6 +36,8 @@ export interface ArdManifest {
  */
 export function buildArdManifest(origin: string, version: string, a2aSkillIds: string[]): ArdManifest {
   return {
+    specVersion: '1.0',
+    host: { identifier: 'hookbase.app', displayName: 'Hookbase' },
     entries: [
       {
         identifier: 'urn:air:hookbase.app:mcp:hookbase',
