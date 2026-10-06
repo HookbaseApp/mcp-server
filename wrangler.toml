@@ -14,6 +14,16 @@ HOOKBASE_API_URL = "https://api.hookbase.app"
 pattern = "mcp.hookbase.app"
 custom_domain = true
 
+# Discovery documents owned by other Workers are republished here through service bindings
+# (see src/well-known/mirror.ts); a same-zone fetch to their custom domains is unreliable.
+[[services]]
+binding = "API"
+service = "apihookbaseapp"
+
+[[services]]
+binding = "FRONTEND"
+service = "wwwhookbaseapp"
+
 [observability.logs]
 enabled = true
 invocation_logs = true
