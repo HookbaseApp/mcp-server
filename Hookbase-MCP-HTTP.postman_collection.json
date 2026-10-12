@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "2afa5334-3ca1-454d-a6e0-22022a49a058",
     "name": "Hookbase MCP — HTTP Transport",
-    "description": "Exercises the Hookbase MCP server's remote **Streamable HTTP** transport (JSON-RPC 2.0) directly, without an MCP client.\n\n- Base URL: `https://mcp.hookbase.app`. Single endpoint `POST /mcp` for all JSON-RPC calls; `GET /health` for liveness.\n- Auth: `Authorization: Bearer whr_...` (set the `api_key` collection variable). Optional multi-org disambiguation via `X-Hookbase-Org-Id` (set the `org_id` collection variable) — applied automatically by this collection's pre-request script.\n- Supported JSON-RPC methods: `initialize`, `notifications/initialized`, `notifications/cancelled`, `ping`, `tools/list`, `tools/call`. There is **no** `resources/*` or `prompts/*` support over HTTP — those only exist on the stdio transport.\n- Every tool call response wraps the tool's actual output as a JSON-encoded **string** at `result.content[0].text` (plus `result.isError`) — parse that string to get the real payload, it is not returned as raw nested JSON.\n- Folders below mirror the 123 tools exposed by `tools/list`, one example `tools/call` request per tool. Fill in the empty `*_id` collection variables after creating a resource (e.g. run \"Sources > Create Source\", then paste the returned id into `source_id`) so the rest of that folder's requests work without editing the body.",
+    "description": "Exercises the Hookbase MCP server's remote **Streamable HTTP** transport (JSON-RPC 2.0) directly, without an MCP client.\n\n- Base URL: `https://mcp.hookbase.app`. Single endpoint `POST /mcp` for all JSON-RPC calls; `GET /health` for liveness.\n- Auth: `Authorization: Bearer whr_...` (set the `api_key` collection variable). Optional multi-org disambiguation via `X-Hookbase-Org-Id` (set the `org_id` collection variable) — applied automatically by this collection's pre-request script.\n- Supported JSON-RPC methods: `initialize`, `notifications/initialized`, `notifications/cancelled`, `ping`, `tools/list`, `tools/call`. There is **no** `resources/*` or `prompts/*` support over HTTP — those only exist on the stdio transport.\n- Every tool call response wraps the tool's actual output as a JSON-encoded **string** at `result.content[0].text` (plus `result.isError`) — parse that string to get the real payload, it is not returned as raw nested JSON.\n- Folders below mirror the 149 tools exposed by `tools/list`, one example `tools/call` request per tool. Fill in the empty `*_id` collection variables after creating a resource (e.g. run \"Sources > Create Source\", then paste the returned id into `source_id`) so the rest of that folder's requests work without editing the body.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -485,6 +485,275 @@
               ]
             },
             "description": "Delete a webhook source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_rotate_source_secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_rotate_source_secret\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Generate a new signing secret (400 for built-in-key, public-key, vendor-issued and secret-after-registration providers)."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_reveal_source_secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_reveal_source_secret\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Reveal the full stored signing secret."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_source_verify_token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_source_verify_token\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Read a WhatsApp/Meta source's verify token."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_rotate_source_verify_token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_rotate_source_verify_token\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Generate a new WhatsApp/Meta verify token."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_source_pending_verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_source_pending_verification\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Show a verification token the vendor (Notion) delivered during registration."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_adopt_source_pending_verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_adopt_source_pending_verification\",\n    \"arguments\": {\n      \"source_id\": \"{{source_id}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Make the pending verification token the source's signing secret."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Provider Catalog",
+      "item": [
+        {
+          "name": "hookbase_list_providers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_list_providers\",\n    \"arguments\": {\n      \"search\": \"stripe\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "List supported webhook providers with the provider value and secret source."
+          },
+          "response": []
+        },
+        {
+          "name": "hookbase_get_provider",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"hookbase_get_provider\",\n    \"arguments\": {\n      \"provider_id\": \"stripe\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Full setup detail for one catalog provider."
           },
           "response": []
         }

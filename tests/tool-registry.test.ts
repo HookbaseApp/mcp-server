@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { sourceTools } from '../src/tools/sources.js';
+import { providerCatalogTools } from '../src/tools/provider-catalog.js';
 import { destinationTools } from '../src/tools/destinations.js';
 import { routeTools } from '../src/tools/routes.js';
 import { eventTools } from '../src/tools/events.js';
@@ -31,6 +32,7 @@ import { allTools as sharedRegistry } from '../src/tools/index.js';
 
 const allTools = [
   ...sourceTools,
+  ...providerCatalogTools,
   ...destinationTools,
   ...routeTools,
   ...eventTools,
