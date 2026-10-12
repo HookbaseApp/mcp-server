@@ -14,7 +14,7 @@ export const eventTools = [
     inputSchema: z.object({
       limit: z.number().optional().describe('Maximum number of events to return (default: 50; no enforced maximum, but very large values may be slow)'),
       offset: z.number().optional().describe('Number of events to skip for pagination'),
-      source_id: z.string().optional().describe('Filter by source ID'),
+      source_id: z.string().optional().describe('Filter by source ID or slug (an unknown one returns a "Source not found" error)'),
       status: z.enum(['delivered', 'failed', 'pending', 'partial', 'no_routes']).optional().describe('Filter by delivery status'),
       from_date: z.string().optional().describe('Filter events after this date (ISO 8601)'),
       to_date: z.string().optional().describe('Filter events before this date (ISO 8601)'),
@@ -62,7 +62,7 @@ export const eventTools = [
     description: 'Poll for events newer than a previous call, for lightweight monitoring. Not a live stream (MCP tool calls are request/response, not push) - call it repeatedly, each time passing the newestReceivedAt from the prior response as since. Returns the most recent `limit` matching events at/after since, newest first; if more than `limit` new events arrived between polls, older ones within that window are omitted - poll more often or raise limit to avoid gaps. Omit since on the first call to get a starting snapshot.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
-      source_id: z.string().optional().describe('Filter to events from this source only'),
+      source_id: z.string().optional().describe('Filter to events from this source only (source ID or slug)'),
       since: z.string().optional().describe('ISO 8601 timestamp - only return events received at or after this time. Pass the previous response\'s newestReceivedAt to continue tailing forward. Omit for an initial snapshot of the most recent events.'),
       limit: z.number().optional().describe('Maximum number of events to return (default 25, cap 100)'),
     }).strict(),

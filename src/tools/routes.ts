@@ -5,6 +5,19 @@
 import { z } from 'zod';
 import * as api from '../lib/api.js';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The routes API checks sourceId against the org by id or slug but then stores it as-is in a UUID
+// column, so a slug passes validation and fails the insert. Resolve a slug to its id here first.
+async function resolveSourceId(idOrSlug: string): Promise<{ id: string } | { error: string }> {
+  if (!idOrSlug || UUID_RE.test(idOrSlug)) return { id: idOrSlug };
+  const result = await api.getSource(encodeURIComponent(idOrSlug));
+  if (result.error || !result.data?.source) {
+    return { error: result.error ?? `Source not found: ${idOrSlug}` };
+  }
+  return { id: result.data.source.id };
+}
+
 const filterConditionSchema = z.object({
   field: z.string().describe('JSON path to the field (e.g., "body.event", "headers.x-event-type")'),
   operator: z.enum(['equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'exists', 'not_exists', 'greater_than', 'less_than', 'regex'])
@@ -78,7 +91,7 @@ export const routeTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().describe('Display name for the route'),
-      source_id: z.string().describe('ID of the source to receive webhooks from'),
+      source_id: z.string().describe('Source ID or slug of the source to receive webhooks from'),
       destination_id: z.string().describe('ID of the destination to forward webhooks to'),
       filter_id: z.string().optional().describe('ID of an existing filter to apply'),
       filter_conditions: z.object({
@@ -99,9 +112,13 @@ export const routeTools = [
       priority?: number;
       is_active?: boolean;
     }) => {
+      const sourceId = await resolveSourceId(args.source_id);
+      if ('error' in sourceId) {
+        return { error: sourceId.error };
+      }
       const result = await api.createRoute({
         name: args.name,
-        sourceId: args.source_id,
+        sourceId: sourceId.id,
         destinationId: args.destination_id,
         filterId: args.filter_id,
         filterConditions: args.filter_conditions,
@@ -131,7 +148,7 @@ export const routeTools = [
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to update'),
       name: z.string().optional().describe('New display name'),
-      source_id: z.string().optional().describe('New source ID'),
+      source_id: z.string().optional().describe('New source ID or slug'),
       destination_id: z.string().optional().describe('New destination ID'),
       filter_id: z.string().nullable().optional().describe('Filter ID (set to null to remove)'),
       transform_id: z.string().nullable().optional().describe('Transform ID (set to null to remove)'),
@@ -148,9 +165,17 @@ export const routeTools = [
       priority?: number;
       is_active?: boolean;
     }) => {
+      let sourceId: string | undefined;
+      if (args.source_id !== undefined) {
+        const resolved = await resolveSourceId(args.source_id);
+        if ('error' in resolved) {
+          return { error: resolved.error };
+        }
+        sourceId = resolved.id;
+      }
       const result = await api.updateRoute(args.route_id, {
         name: args.name,
-        sourceId: args.source_id,
+        sourceId,
         destinationId: args.destination_id,
         filterId: args.filter_id,
         transformId: args.transform_id,

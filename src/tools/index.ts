@@ -11,6 +11,7 @@ import { z } from 'zod';
 import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 
 import { sourceTools } from './sources.js';
+import { providerCatalogTools } from './provider-catalog.js';
 import { destinationTools } from './destinations.js';
 import { routeTools } from './routes.js';
 import { eventTools } from './events.js';
@@ -52,6 +53,7 @@ export interface HookbaseTool {
 
 export const allTools: HookbaseTool[] = [
   ...sourceTools,
+  ...providerCatalogTools,
   ...destinationTools,
   ...routeTools,
   ...eventTools,

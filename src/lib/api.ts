@@ -65,7 +65,8 @@ function orgPath(path: string): string {
 
 // Live API returns camelCase + real booleans. GET /:id masks the signing secret to
 // hasSigningSecret/signingSecretLast4 and does NOT include event/route counts (only the list does);
-// POST returns the full signingSecret once.
+// POST returns the full signingSecret once (null for built-in-key and secret-after-registration
+// providers), plus verifyToken for Meta providers and the ingestUrl.
 export interface Source {
   id: string;
   name: string;
@@ -80,7 +81,15 @@ export interface Source {
   rateLimitPerMinute?: number;
   hasSigningSecret?: boolean;
   signingSecretLast4?: string;
-  signingSecret?: string;
+  signingSecret?: string | null;
+  // The provider issues its secret only after the URL is registered (asana, notion) and none is stored yet.
+  awaitingSigningSecret?: boolean;
+  // The provider signs with a key Hookbase already has (wise, aws-sns): verified with no secret.
+  verifiesWithoutSecret?: boolean;
+  // Create response only, Meta providers only.
+  verifyToken?: string;
+  // Create response only.
+  ingestUrl?: string;
   // Verbs the ingest endpoint accepts; [] means any method.
   allowedMethods?: string[];
   createdAt?: string;
@@ -100,6 +109,8 @@ export async function createSource(
   provider?: string,
   options?: {
     description?: string;
+    signingSecret?: string;
+    verifyToken?: string;
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
     transientMode?: boolean;
@@ -110,6 +121,8 @@ export async function createSource(
     name,
     slug,
     description: options?.description,
+    signingSecret: options?.signingSecret,
+    verifyToken: options?.verifyToken,
     rejectInvalidSignatures: options?.rejectInvalidSignatures,
     rateLimitPerMinute: options?.rateLimitPerMinute,
     transientMode: options?.transientMode,
@@ -127,16 +140,20 @@ export async function updateSource(
   sourceId: string,
   data: {
     name?: string;
-    provider?: string;
+    provider?: string | null;
     description?: string;
     isActive?: boolean;
+    // null clears the secret; for verifyToken, '' or null regenerates it.
+    signingSecret?: string | null;
+    verifyToken?: string | null;
     rejectInvalidSignatures?: boolean;
     rateLimitPerMinute?: number;
     transientMode?: boolean;
     allowedMethods?: string[];
   }
-): Promise<ApiResponse<{ source: Source }>> {
-  return request<{ source: Source }>('PATCH', orgPath(`/sources/${sourceId}`), data);
+): Promise<ApiResponse<{ success: boolean }>> {
+  // PATCH answers {success: true} only, not the updated source.
+  return request<{ success: boolean }>('PATCH', orgPath(`/sources/${sourceId}`), data);
 }
 
 export async function deleteSource(sourceId: string): Promise<ApiResponse<{ success: boolean }>> {
@@ -147,6 +164,107 @@ export async function deleteSource(sourceId: string): Promise<ApiResponse<{ succ
 // verifying immediately.
 export async function rotateSourceSecret(sourceId: string): Promise<ApiResponse<{ signingSecret: string }>> {
   return request<{ signingSecret: string }>('POST', orgPath(`/sources/${sourceId}/rotate-secret`));
+}
+
+// 404 when the source has no stored secret.
+export async function revealSourceSecret(sourceId: string): Promise<ApiResponse<{ signingSecret: string | null }>> {
+  return request<{ signingSecret: string | null }>('GET', orgPath(`/sources/${sourceId}/reveal-secret`));
+}
+
+// Meta providers only; 400 for any other provider.
+export async function getSourceVerifyToken(sourceId: string): Promise<ApiResponse<{ verifyToken: string }>> {
+  return request<{ verifyToken: string }>('GET', orgPath(`/sources/${sourceId}/verify-token`));
+}
+
+export async function rotateSourceVerifyToken(sourceId: string): Promise<ApiResponse<{ verifyToken: string }>> {
+  return request<{ verifyToken: string }>('POST', orgPath(`/sources/${sourceId}/rotate-verify-token`));
+}
+
+// A verification token the vendor (Notion) delivered to the ingest URL; 404 when none is waiting.
+export interface SourcePendingVerification {
+  provider: string;
+  token: string;
+  receivedAt: string;
+  clientIp: string | null;
+}
+
+export async function getSourcePendingVerification(sourceId: string): Promise<ApiResponse<SourcePendingVerification>> {
+  return request<SourcePendingVerification>('GET', orgPath(`/sources/${sourceId}/pending-verification`));
+}
+
+export async function adoptSourcePendingVerification(sourceId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>('POST', orgPath(`/sources/${sourceId}/pending-verification/adopt`));
+}
+
+// ============================================================================
+// Provider catalog (public, no auth)
+// ============================================================================
+
+// Which side produces the credential a source stores; see hookbase_get_provider's description.
+export type ProviderSecretSource = 'provider' | 'operator' | 'public_key' | 'built_in' | 'none';
+
+export interface ProviderSignatureSummary {
+  supported: boolean;
+  kind?: 'hmac' | 'shared_secret' | 'bespoke' | 'asymmetric';
+  secretSource: ProviderSecretSource;
+  secretLabel: string;
+  secretPlaceholder?: string;
+  secretAfterRegistration?: boolean;
+}
+
+export interface ProviderSignatureVerification extends ProviderSignatureSummary {
+  algorithm: string;
+  headerName: string;
+  secretLocationHint: string;
+  secretInstruction: string;
+  secretFormat?: 'whsec' | 'basic_auth';
+  verifyToken?: { label: string; instruction: string };
+}
+
+export interface ProviderCatalogSummary {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  icon?: string;
+  eventTypeCount: number;
+  // The value to pass as a source's `provider`; can differ from the catalog id.
+  hookbaseProvider: string;
+  hasSignatureVerification: boolean;
+  hasIpRanges: boolean;
+  // Newer API versions only; absent on older deployments (fall back to the detail call).
+  signatureVerification?: ProviderSignatureSummary | null;
+}
+
+export interface ProviderCatalogEntry {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  website?: string;
+  docsUrl?: string;
+  icon?: string;
+  hookbaseProvider: string;
+  signatureVerification: ProviderSignatureVerification | null;
+  eventTypes: { type: string; description: string }[];
+  samplePayloads?: Record<string, unknown>;
+  ipRanges: string[] | null;
+  setupGuide: string[];
+}
+
+export async function listProviders(params?: {
+  category?: string;
+  search?: string;
+}): Promise<ApiResponse<{ providers: ProviderCatalogSummary[]; categories: string[]; total: number }>> {
+  const qs = new URLSearchParams();
+  if (params?.category) qs.set('category', params.category);
+  if (params?.search) qs.set('search', params.search);
+  const query = qs.toString();
+  return request('GET', `/api/catalog/providers${query ? `?${query}` : ''}`);
+}
+
+export async function getProvider(providerId: string): Promise<ApiResponse<{ provider: ProviderCatalogEntry }>> {
+  return request('GET', `/api/catalog/providers/${encodeURIComponent(providerId)}`);
 }
 
 // ============================================================================

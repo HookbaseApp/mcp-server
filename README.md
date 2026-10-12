@@ -105,17 +105,28 @@ Add it as a remote MCP connector:
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (142)
+## Available Tools (149)
 
 ### Inbound Webhooks
 
 #### Sources
+Every `source_id` accepts the source's ID or its slug.
+
 - `hookbase_list_sources` - List all webhook sources
-- `hookbase_get_source` - Get source details
-- `hookbase_create_source` - Create new source
-- `hookbase_update_source` - Update source config
+- `hookbase_get_source` - Get source details (secret masked; includes `awaitingSigningSecret` / `verifiesWithoutSecret`)
+- `hookbase_create_source` - Create new source; accepts `signing_secret` (required for vendor-issued and public-key providers) and `verify_token` (WhatsApp/Meta), returns `ingestUrl` and the generated `signingSecret` / `verifyToken` once
+- `hookbase_update_source` - Update source config, including `signing_secret` (null removes it) and `verify_token` (null regenerates it)
 - `hookbase_delete_source` - Delete a source (cascades to its routes, their deliveries, and every event ever ingested through it)
-- `hookbase_rotate_source_secret` - Rotate signing secret (no grace period - old secret stops working immediately)
+- `hookbase_rotate_source_secret` - Generate a new signing secret (no grace period - old secret stops working immediately; 400 for built-in-key, public-key, vendor-issued and secret-after-registration providers)
+- `hookbase_reveal_source_secret` - Reveal the full stored signing secret
+- `hookbase_get_source_verify_token` - Read a WhatsApp/Meta source's verify token
+- `hookbase_rotate_source_verify_token` - Generate a new WhatsApp/Meta verify token
+- `hookbase_get_source_pending_verification` - Show a verification token the vendor (Notion) delivered during registration
+- `hookbase_adopt_source_pending_verification` - Make that pending token the source's signing secret
+
+#### Provider Catalog
+- `hookbase_list_providers` - List supported webhook providers (filter by category/search) with the `provider` value to use and who issues the secret
+- `hookbase_get_provider` - Full setup detail for one provider: secret source/label/instructions, verify token, setup guide, event types
 
 #### Destinations
 - `hookbase_list_destinations` - List all destinations
@@ -347,6 +358,7 @@ Once configured, you can ask Claude things like:
 - "List all my webhook sources"
 - "Show me failed deliveries from the last hour"
 - "Create a new source for Stripe webhooks"
+- "Which providers do you support for e-commerce, and do I need to paste a secret for Shopify?"
 - "What's my webhook success rate for the last 24 hours?"
 - "Replay all failed deliveries for the payment-service destination"
 - "Test my Slack notification destination"

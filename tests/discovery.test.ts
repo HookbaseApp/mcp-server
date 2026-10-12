@@ -15,7 +15,7 @@ const ORIGIN = 'https://mcp.hookbase.app';
 
 describe('buildArdManifest', () => {
   const skillIds = agentCardSkills().map((s) => s.id);
-  const manifest = buildArdManifest(ORIGIN, '2.9.0', skillIds);
+  const manifest = buildArdManifest(ORIGIN, '2.10.0', skillIds);
 
   it('gives every entry the terms ARD requires, with exactly one of url/data', () => {
     for (const entry of manifest.entries) {
