@@ -14,7 +14,7 @@ const SECRET_SOURCE_DESC =
   'signatureVerification.secretSource says who produces the credential a source stores: ' +
   '"provider" — the vendor issues it; ask the user to copy it from the vendor (see secretInstruction) ' +
   'and pass it as signing_secret to hookbase_create_source, which rejects the create without it for ' +
-  'vendor-key schemes. "public_key" — the vendor\'s public verification key; ask the user to paste it. ' +
+  'format-checked vendor keys; for the rest a create without it stores no secret (awaitingSigningSecret=true, events unverified until it is set). "public_key" — the vendor\'s public verification key; ask the user to paste it. ' +
   '"operator" — the vendor only has an input field; omit signing_secret, Hookbase generates one, and the ' +
   'user pastes the returned signingSecret into the vendor. "built_in" — the vendor publishes one key ' +
   'Hookbase already has; send no secret (the API rejects one) — events are still verified. "none" — the ' +
