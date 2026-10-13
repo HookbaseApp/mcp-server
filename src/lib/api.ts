@@ -82,7 +82,7 @@ export interface Source {
   hasSigningSecret?: boolean;
   signingSecretLast4?: string;
   signingSecret?: string | null;
-  // The provider issues its secret only after the URL is registered (asana, notion) and none is stored yet.
+  // No secret is stored and only the vendor can issue one (e.g. stripe before it's pasted; asana/notion until registration).
   awaitingSigningSecret?: boolean;
   // The provider signs with a key Hookbase already has (wise, aws-sns): verified with no secret.
   verifiesWithoutSecret?: boolean;
