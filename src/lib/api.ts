@@ -1081,7 +1081,7 @@ export async function deleteFilter(filterId: string): Promise<ApiResponse<{ succ
 // Transforms
 // ============================================================================
 
-export type TransformType = 'jsonata' | 'xslt' | 'liquid' | 'javascript';
+export type TransformType = 'jsonata' | 'javascript' | 'typescript' | 'liquid' | 'xslt' | 'jmespath' | 'jsonlogic' | 'jq';
 export type ContentFormat = 'json' | 'xml' | 'text';
 
 export interface Transform {

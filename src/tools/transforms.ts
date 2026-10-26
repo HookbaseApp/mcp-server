@@ -5,13 +5,13 @@
 import { z } from 'zod';
 import * as api from '../lib/api.js';
 
-const transformTypeEnum = z.enum(['jsonata', 'xslt', 'liquid', 'javascript']);
+const transformTypeEnum = z.enum(['jsonata', 'javascript', 'typescript', 'liquid', 'xslt', 'jmespath', 'jsonlogic', 'jq']);
 const contentFormatEnum = z.enum(['json', 'xml', 'text']);
 
 export const transformTools = [
   {
     name: 'hookbase_list_transforms',
-    description: 'List transform definitions. Transforms reshape an event payload before delivery (JSONata, XSLT, Liquid, or JavaScript).',
+    description: 'List transform definitions. Transforms reshape an event payload before delivery (JSONata, JavaScript, TypeScript, Liquid, XSLT, JMESPath, JSON Logic, or jq; jq may be unavailable on servers without transform isolation).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       page: z.number().optional(),
@@ -45,7 +45,7 @@ export const transformTools = [
       slug: z.string().optional(),
       description: z.string().optional(),
       code: z.string().describe('Transform expression / source. JSONata is the default.'),
-      transform_type: transformTypeEnum.optional().describe('Default: jsonata'),
+      transform_type: transformTypeEnum.optional().describe('Default: jsonata. One of jsonata, javascript, typescript, liquid, xslt, jmespath, jsonlogic, jq (jq errors with TRANSFORM_ENGINE_UNAVAILABLE if the server lacks transform isolation)'),
       input_format: contentFormatEnum.optional().describe('Default: json'),
       output_format: contentFormatEnum.optional().describe('Default: json'),
     }).strict(),
@@ -123,7 +123,7 @@ export const transformTools = [
   },
   {
     name: 'hookbase_test_transform',
-    description: 'Run a transform expression against a sample payload without saving. Useful for iterating on JSONata/XSLT/Liquid/JS code.',
+    description: 'Run a transform expression against a sample payload without saving. Useful for iterating on JSONata/JS/TS/Liquid/XSLT/JMESPath/JSON Logic/jq code.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       code: z.string(),
