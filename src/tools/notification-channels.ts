@@ -2,7 +2,7 @@
  * Notification channel tools for MCP server
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const channelTypeEnum = z.enum(['email', 'slack', 'webhook', 'teams', 'pagerduty', 'discord']);

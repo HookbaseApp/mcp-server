@@ -15,6 +15,15 @@
  * Regenerate (zod 3 only, the inputs come from zod 3 internals): ZOD_CONTRACT_WRITE=1 npx vitest run
  * tests/zod-contract.test.ts. Re-record results from the stored inputs on any version:
  * ZOD_CONTRACT_ACCEPT=1. Say in the commit what changed and why.
+ *
+ * Accepted on the move to zod 4:
+ * - Parses: a wrong-type value also gets a length message after zod 3's (zod 4 runs `.min()` and
+ *   `.max()` on anything with a `.length`). The first message for every field is unchanged.
+ * - Listings: records add `propertyNames: {type: string}`; `guid()` fields add an any-hex `pattern`
+ *   next to `format: uuid`; output_format inlines its enum instead of `$ref`-ing input_format;
+ *   arrays gain `maxItems: 1000`; and strip-mode objects no longer claim
+ *   `additionalProperties: false`, which they never enforced (unknown keys are dropped, not
+ *   rejected). `required` and every `description` are unchanged.
  */
 
 import { describe, it, expect } from 'vitest';

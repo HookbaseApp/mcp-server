@@ -2,7 +2,7 @@
  * Destination tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, boundedRecord, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 // Mirrors the API's throttle sub-schema (createDestinationSchema in api/src/routes/destinations.ts):
@@ -105,18 +105,18 @@ export const destinationTools = [
       type: z.enum(['http', 's3', 'r2', 'gcs', 'azure_blob']).optional().describe('Destination type (default: http). Use warehouse types for storage destinations.'),
       url: z.string().optional().describe('The URL to forward webhooks to (required for http type)'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST, only for http type)'),
-      headers: z.record(z.string()).optional().describe('Custom headers to include in requests (only for http type)'),
+      headers: boundedRecord(z.string()).optional().describe('Custom headers to include in requests (only for http type)'),
       auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type (default: none, only for http type)'),
-      auth_config: z.record(z.string()).optional().describe('Auth configuration (username/password for basic, token for bearer, etc.)'),
+      auth_config: boundedRecord(z.string()).optional().describe('Auth configuration (username/password for basic, token for bearer, etc.)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
       throttle: throttleInputSchema,
-      config: z.record(z.any()).optional().describe('Warehouse configuration object. For S3: {bucket, region, accessKeyId, secretAccessKey, prefix?, fileFormat?, partitionBy?}. For R2: {bucket, prefix?, fileFormat?, partitionBy?}. For GCS: {bucket, projectId, serviceAccountKey, prefix?, fileFormat?, partitionBy?}. For Azure Blob: {accountName, accountKey, containerName, prefix?, fileFormat?, partitionBy?}.'),
+      config: z.record(z.string(), z.any()).optional().describe('Warehouse configuration object. For S3: {bucket, region, accessKeyId, secretAccessKey, prefix?, fileFormat?, partitionBy?}. For R2: {bucket, prefix?, fileFormat?, partitionBy?}. For GCS: {bucket, projectId, serviceAccountKey, prefix?, fileFormat?, partitionBy?}. For Azure Blob: {accountName, accountKey, containerName, prefix?, fileFormat?, partitionBy?}.'),
       field_mapping: z.array(z.object({
         source: z.string().describe('Source field path in the webhook payload'),
         target: z.string().describe('Target field name in the warehouse'),
         type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
         default: z.string().optional().describe('Default value if source field is missing'),
-      })).optional().describe('Field mappings for warehouse destinations'),
+      })).max(MAX_COLLECTION).optional().describe('Field mappings for warehouse destinations'),
       use_static_ip: z.boolean().optional().describe('Enable static IP delivery (Pro and Business plans)'),
       batch_size: z.number().optional().describe('Number of events to accumulate before flushing to warehouse (warehouse destinations only)'),
       batch_window_seconds: z.number().optional().describe('Max seconds to wait before flushing a batch to warehouse (warehouse destinations only)'),
@@ -184,19 +184,19 @@ export const destinationTools = [
       name: z.string().optional().describe('New display name'),
       url: z.string().optional().describe('New URL (for http type destinations)'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method'),
-      headers: z.record(z.string()).optional().describe('Custom headers'),
+      headers: boundedRecord(z.string()).optional().describe('Custom headers'),
       auth_type: z.enum(['none', 'basic', 'bearer', 'api_key', 'custom_header']).optional().describe('Authentication type'),
-      auth_config: z.record(z.string()).optional().describe('Auth configuration'),
+      auth_config: boundedRecord(z.string()).optional().describe('Auth configuration'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds'),
       throttle: throttleInputSchema,
       is_active: z.boolean().optional().describe('Enable or disable the destination'),
-      config: z.record(z.any()).optional().describe('Warehouse configuration object (for warehouse type destinations)'),
+      config: z.record(z.string(), z.any()).optional().describe('Warehouse configuration object (for warehouse type destinations)'),
       field_mapping: z.array(z.object({
         source: z.string().describe('Source field path in the webhook payload'),
         target: z.string().describe('Target field name in the warehouse'),
         type: z.enum(['string', 'number', 'boolean', 'timestamp', 'json']).describe('Data type for the field'),
         default: z.string().optional().describe('Default value if source field is missing'),
-      })).optional().describe('Field mappings for warehouse destinations'),
+      })).max(MAX_COLLECTION).optional().describe('Field mappings for warehouse destinations'),
       use_static_ip: z.boolean().optional().describe('Enable static IP delivery (Pro and Business plans)'),
       batch_size: z.number().optional().describe('Number of events to accumulate before flushing to warehouse (warehouse destinations only)'),
       batch_window_seconds: z.number().optional().describe('Max seconds to wait before flushing a batch to warehouse (warehouse destinations only)'),

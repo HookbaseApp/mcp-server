@@ -2,7 +2,7 @@
  * Cron job tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const cronTools = [
@@ -43,7 +43,7 @@ export const cronTools = [
       cron_expression: z.string().describe('Standard 5-field cron expression (minute hour day-of-month month day-of-week), evaluated in `timezone`. Examples: "0 * * * *" (top of every hour), "0 0 * * *" (daily at midnight), "*/15 * * * *" (every 15 minutes).'),
       url: z.string().url().describe('URL to request when the job runs'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST)'),
-      headers: z.record(z.string()).optional().describe('Custom headers to include'),
+      headers: boundedRecord(z.string()).optional().describe('Custom headers to include'),
       payload: z.string().optional().describe('Request body (for POST/PUT/PATCH)'),
       timezone: z.string().optional().describe('IANA timezone name (e.g. "America/New_York") that cron_expression is evaluated in (default: UTC)'),
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds (default: 30000)'),
@@ -115,7 +115,7 @@ export const cronTools = [
       timezone: z.string().optional(),
       url: z.string().url().optional(),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional(),
-      headers: z.record(z.string(), z.string()).optional(),
+      headers: boundedRecord(z.string()).optional(),
       payload: z.string().optional(),
       timeout_ms: z.number().optional(),
       is_active: z.boolean().optional(),

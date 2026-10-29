@@ -14,8 +14,7 @@
  * prompts stay offline.
  */
 
-import type { ZodObject, ZodRawShape } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from '../lib/zod.js';
 
 import pkg from '../../package.json' with { type: 'json' };
 import { allTools, type HookbaseTool } from '../tools/index.js';
@@ -54,7 +53,7 @@ const toolByName = new Map<string, HookbaseTool>(allTools.map((t) => [t.name, t]
 interface PromptDef {
   name: string;
   description: string;
-  argsSchema: ZodObject<ZodRawShape>;
+  argsSchema: z.ZodObject<z.ZodRawShape>;
   getPrompt: (args: Record<string, unknown>) => { messages: unknown[] };
 }
 const promptByName = new Map<string, PromptDef>(
@@ -62,8 +61,8 @@ const promptByName = new Map<string, PromptDef>(
 );
 
 /** Convert a prompt's Zod args schema into MCP's PromptArgument[] wire shape. */
-function promptArguments(schema: ZodObject<ZodRawShape>) {
-  return Object.entries(schema.shape).map(([name, field]) => ({
+function promptArguments(schema: z.ZodObject<z.ZodRawShape>) {
+  return Object.entries(schema.shape as Record<string, z.ZodType>).map(([name, field]) => ({
     name,
     description: field.description,
     required: !field.isOptional(),
@@ -77,7 +76,8 @@ let toolListCache:
 function toolList() {
   if (!toolListCache) {
     toolListCache = allTools.map((t) => {
-      const schema = zodToJsonSchema(t.inputSchema, { target: 'jsonSchema7' }) as Record<string, unknown>;
+      // io: 'input' describes what a caller may send, so a field with a default is not required.
+      const schema = z.toJSONSchema(t.inputSchema, { target: 'draft-7', io: 'input' }) as Record<string, unknown>;
       delete schema.$schema;
       return {
         name: t.name,

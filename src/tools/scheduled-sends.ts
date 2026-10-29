@@ -2,7 +2,7 @@
  * Scheduled send tools for MCP server (one-shot future webhook sends)
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const statusEnum = z.enum(['pending', 'sending', 'sent', 'failed', 'cancelled']);
@@ -49,7 +49,7 @@ export const scheduledSendTools = [
       name: z.string().max(200).optional(),
       description: z.string().max(1000).optional(),
       method: z.string().optional().describe('Default "POST"'),
-      headers: z.record(z.string(), z.string()).optional(),
+      headers: boundedRecord(z.string()).optional(),
       payload: z.unknown().optional(),
       timezone: z.string().optional().describe('Default "UTC" — display only; scheduled_for is the source of truth'),
       max_attempts: z.number().int().min(1).max(10).optional().describe('Default 3'),
@@ -90,7 +90,7 @@ export const scheduledSendTools = [
       description: z.string().max(1000).optional(),
       url: z.string().url().optional(),
       method: z.string().optional(),
-      headers: z.record(z.string(), z.string()).optional(),
+      headers: boundedRecord(z.string()).optional(),
       payload: z.unknown().optional(),
       scheduled_for: z.string().optional().describe('ISO-8601, must be in the future'),
       timezone: z.string().optional(),

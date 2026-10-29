@@ -2,7 +2,7 @@
  * Alert rule tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const triggerTypeEnum = z.enum([
@@ -59,7 +59,7 @@ export const alertRuleTools = [
       trigger_config: z
         .record(z.string(), z.unknown())
         .describe('Discriminated config matching trigger_type — see tool description'),
-      notification_channel_ids: z.array(z.string()).min(1).describe('IDs of notification channels to fire'),
+      notification_channel_ids: z.array(z.string()).max(MAX_COLLECTION).min(1).describe('IDs of notification channels to fire'),
       cooldown_minutes: z.number().int().min(1).max(1440).optional().describe('Default 30'),
     }).strict(),
     handler: async (args: {
@@ -88,7 +88,7 @@ export const alertRuleTools = [
       rule_id: z.string(),
       name: z.string().max(100).optional(),
       trigger_config: z.record(z.string(), z.unknown()).optional(),
-      notification_channel_ids: z.array(z.string()).min(1).optional(),
+      notification_channel_ids: z.array(z.string()).max(MAX_COLLECTION).min(1).optional(),
       cooldown_minutes: z.number().int().min(1).max(1440).optional(),
       is_active: z.boolean().optional(),
     }).strict(),

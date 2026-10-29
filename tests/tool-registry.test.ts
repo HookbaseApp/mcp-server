@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { z } from 'zod';
+import { z } from '../src/lib/zod.js';
 import { sourceTools } from '../src/tools/sources.js';
 import { providerCatalogTools } from '../src/tools/provider-catalog.js';
 import { destinationTools } from '../src/tools/destinations.js';

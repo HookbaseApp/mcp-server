@@ -4,7 +4,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
+import { z } from './lib/zod.js';
 
 import pkg from '../package.json' with { type: 'json' };
 import { initConfig, getInitError } from './lib/config.js';

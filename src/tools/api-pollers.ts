@@ -6,7 +6,7 @@
  * re-emitted as a normal inbound event on one of their sources.
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const apiPollerTools = [
@@ -45,7 +45,7 @@ export const apiPollerTools = [
       cron_expression: z.string().describe('Cron expression for the poll schedule (e.g., "*/15 * * * *" for every 15 minutes)'),
       description: z.string().optional().describe('Optional description'),
       http_method: z.enum(['GET', 'POST', 'PUT']).optional().describe('HTTP method (default: GET)'),
-      headers: z.record(z.string(), z.string()).optional().describe('Custom headers to include (e.g., an Authorization header)'),
+      headers: boundedRecord(z.string()).optional().describe('Custom headers to include (e.g., an Authorization header)'),
       response_path: z.string().optional().describe('Dot path to the array of items within the JSON response body (e.g., "data.items"); omit if the response is itself the array'),
       id_field: z.string().optional().describe('Field on each item used to dedupe across runs (default: "id")'),
       event_type_field: z.string().optional().describe('Field on each item to use as the emitted event type; falls back to default_event_type when absent'),
@@ -99,7 +99,7 @@ export const apiPollerTools = [
       url: z.string().url().optional(),
       cron_expression: z.string().optional(),
       http_method: z.enum(['GET', 'POST', 'PUT']).optional(),
-      headers: z.record(z.string(), z.string()).nullable().optional(),
+      headers: boundedRecord(z.string()).nullable().optional(),
       response_path: z.string().nullable().optional(),
       id_field: z.string().optional(),
       event_type_field: z.string().nullable().optional(),
