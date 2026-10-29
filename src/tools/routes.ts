@@ -2,7 +2,7 @@
  * Route tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,7 +96,7 @@ export const routeTools = [
       filter_id: z.string().optional().describe('ID of an existing filter to apply'),
       filter_conditions: z.object({
         logic: z.enum(['AND', 'OR']).describe('How to combine conditions'),
-        conditions: z.array(filterConditionSchema).describe('Filter conditions to evaluate'),
+        conditions: z.array(filterConditionSchema).max(MAX_COLLECTION).describe('Filter conditions to evaluate'),
       }).strict().optional().describe('Inline filter conditions (alternative to filter_id)'),
       transform_id: z.string().optional().describe('ID of a transform to apply to the payload'),
       priority: z.number().optional().describe('Route priority (lower = higher priority, default: 0)'),

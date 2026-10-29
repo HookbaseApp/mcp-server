@@ -3,7 +3,7 @@
  * Applications, Endpoints, and Subscriptions
  */
 
-import { z } from 'zod';
+import { z, boundedRecord, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 // ============================================================================
@@ -97,7 +97,7 @@ export const applicationTools = [
     inputSchema: z.object({
       name: z.string().describe('Display name for the application'),
       external_id: z.string().optional().describe('Your system\'s ID for this customer/application'),
-      metadata: z.record(z.unknown()).optional().describe('Custom metadata as key-value pairs'),
+      metadata: z.record(z.string(), z.unknown()).optional().describe('Custom metadata as key-value pairs'),
       rate_limit_per_second: z.number().optional().describe('Max events per second (default 100)'),
       rate_limit_per_minute: z.number().optional().describe('Max events per minute (default 1000)'),
       rate_limit_per_hour: z.number().optional().describe('Max events per hour (default 10000)'),
@@ -134,7 +134,7 @@ export const applicationTools = [
     inputSchema: z.object({
       application_id: z.string().describe('The ID of the application to update'),
       name: z.string().optional().describe('New display name'),
-      metadata: z.record(z.unknown()).optional().describe('Updated metadata'),
+      metadata: z.record(z.string(), z.unknown()).optional().describe('Updated metadata'),
       rate_limit_per_second: z.number().optional().describe('Max events per second'),
       rate_limit_per_minute: z.number().optional().describe('Max events per minute'),
       rate_limit_per_hour: z.number().optional().describe('Max events per hour'),
@@ -289,12 +289,12 @@ export const endpointTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       application_id: z.string().describe('The application ID this endpoint belongs to'),
-      url: z.string().url().describe('The HTTPS URL to receive webhooks'),
+      url: z.url().describe('The HTTPS URL to receive webhooks'),
       description: z.string().optional().describe('Description of the endpoint'),
       headers: z.array(z.object({
         name: z.string().describe('Header name'),
         value: z.string().describe('Header value'),
-      })).optional().describe('Custom headers to include in requests'),
+      })).max(MAX_COLLECTION).optional().describe('Custom headers to include in requests'),
       timeout_seconds: z.number().optional().describe('Request timeout in seconds (default 30)'),
       circuit_failure_threshold: z.number().optional().describe('Failures before opening circuit (default 5)'),
       circuit_success_threshold: z.number().optional().describe('Successes to close circuit (default 2)'),
@@ -340,12 +340,12 @@ export const endpointTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint to update'),
-      url: z.string().url().optional().describe('New HTTPS URL'),
+      url: z.url().optional().describe('New HTTPS URL'),
       description: z.string().optional().describe('New description'),
       headers: z.array(z.object({
         name: z.string().describe('Header name'),
         value: z.string().describe('Header value'),
-      })).optional().describe('Updated custom headers'),
+      })).max(MAX_COLLECTION).optional().describe('Updated custom headers'),
       timeout_seconds: z.number().optional().describe('Request timeout in seconds'),
       is_enabled: z.boolean().optional().describe('Enable or disable the endpoint'),
       disabled_reason: z.string().optional().describe('Reason for disabling (when is_enabled=false)'),
@@ -535,7 +535,7 @@ export const subscriptionTools = [
       endpoint_id: z.string().describe('The endpoint ID to subscribe'),
       event_type_id: z.string().describe('The event type ID to subscribe to'),
       filter_expression: z.string().optional().describe('JSONata expression to filter events'),
-      label_filters: z.record(z.union([z.string(), z.array(z.string())])).optional().describe('Label filters to match against event labels (e.g., {"environment": "production"} or {"region": ["us-east", "us-west"]})'),
+      label_filters: boundedRecord(z.union([z.string(), z.array(z.string()).max(MAX_COLLECTION)])).optional().describe('Label filters to match against event labels (e.g., {"environment": "production"} or {"region": ["us-east", "us-west"]})'),
       label_filter_mode: z.enum(['all', 'any']).optional().describe('Filter mode: "all" requires all filters to match (AND), "any" requires at least one filter to match (OR). Default: "all"'),
       transform_id: z.string().optional().describe('Transform ID to modify payload before delivery'),
       is_enabled: z.boolean().optional().describe('Enable the subscription (default true)'),
@@ -574,7 +574,7 @@ export const subscriptionTools = [
     inputSchema: z.object({
       subscription_id: z.string().describe('The ID of the subscription to update'),
       filter_expression: z.string().optional().describe('New filter expression (null to remove)'),
-      label_filters: z.record(z.union([z.string(), z.array(z.string())])).optional().nullable().describe('Label filters to match against event labels (null to remove)'),
+      label_filters: boundedRecord(z.union([z.string(), z.array(z.string()).max(MAX_COLLECTION)])).optional().nullable().describe('Label filters to match against event labels (null to remove)'),
       label_filter_mode: z.enum(['all', 'any']).optional().nullable().describe('Filter mode: "all" (AND) or "any" (OR)'),
       transform_id: z.string().optional().describe('New transform ID (null to remove)'),
       is_enabled: z.boolean().optional().describe('Enable or disable the subscription'),

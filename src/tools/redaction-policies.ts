@@ -2,7 +2,7 @@
  * Redaction policy tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const ruleSchema = z.object({
@@ -25,7 +25,7 @@ export const redactionPolicyTools = [
     description: 'List redaction policies for this org. Optionally filter by source_id (org-wide policies have null sourceId).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
-      source_id: z.string().uuid().optional(),
+      source_id: z.guid().optional(),
     }).strict(),
     handler: async (args: { source_id?: string }) => {
       const result = await api.getRedactionPolicies(args.source_id);
@@ -51,7 +51,7 @@ export const redactionPolicyTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().min(1).max(100),
-      source_id: z.string().uuid().nullable().optional(),
+      source_id: z.guid().nullable().optional(),
       rules: z.array(ruleSchema).min(1).max(50),
       scope: scopeEnum.optional().describe('Default "both"'),
     }).strict(),
@@ -78,7 +78,7 @@ export const redactionPolicyTools = [
     inputSchema: z.object({
       policy_id: z.string(),
       name: z.string().min(1).max(100),
-      source_id: z.string().uuid().nullable().optional(),
+      source_id: z.guid().nullable().optional(),
       rules: z.array(ruleSchema).min(1).max(50),
       scope: scopeEnum,
       is_active: z.boolean(),
@@ -119,8 +119,8 @@ export const redactionPolicyTools = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       rules: z.array(ruleSchema).min(1).max(50),
-      payload: z.unknown(),
-      headers: z.record(z.string(), z.string()).optional(),
+      payload: z.unknown().optional(),
+      headers: boundedRecord(z.string()).optional(),
     }).strict(),
     handler: async (args: { rules: api.RedactionRule[]; payload: unknown; headers?: Record<string, string> }) => {
       const result = await api.previewRedactionPolicy({

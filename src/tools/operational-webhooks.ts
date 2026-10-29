@@ -8,7 +8,7 @@
  * webhook traffic to that application's endpoints.
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const operationalWebhookTools = [
@@ -45,7 +45,7 @@ export const operationalWebhookTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
-      url: z.string().url().describe('URL to notify (HTTPS required, except localhost for development)'),
+      url: z.url().describe('URL to notify (HTTPS required, except localhost for development)'),
       description: z.string().optional(),
       on_message_exhausted: z.boolean().optional().describe('Notify when a message exhausts all delivery attempts (default: true)'),
       on_circuit_breaker_open: z.boolean().optional().describe('Notify when an endpoint\'s circuit breaker opens (default: true)'),
@@ -92,7 +92,7 @@ export const operationalWebhookTools = [
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID'),
-      url: z.string().url().optional(),
+      url: z.url().optional(),
       description: z.string().nullable().optional(),
       on_message_exhausted: z.boolean().optional(),
       on_circuit_breaker_open: z.boolean().optional(),

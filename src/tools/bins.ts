@@ -6,7 +6,7 @@
  * org-scoped: anyone with the binId can read/post to it.
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const binTools = [
@@ -68,7 +68,7 @@ export const binTools = [
     inputSchema: z.object({
       bin_id: z.string(),
       status_code: z.number().int().min(100).max(599).optional().describe('Default 200'),
-      headers: z.record(z.string(), z.string()).optional(),
+      headers: boundedRecord(z.string()).optional(),
       body: z.string().max(10000).optional(),
     }).strict(),
     handler: async (args: { bin_id: string; status_code?: number; headers?: Record<string, string>; body?: string }) => {

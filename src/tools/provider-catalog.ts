@@ -7,7 +7,7 @@
  * hookbaseProvider, which can differ from its id) and whether the user has to paste a secret.
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const SECRET_SOURCE_DESC =

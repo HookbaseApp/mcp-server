@@ -2,7 +2,7 @@
  * Transform tools for MCP server
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const transformTypeEnum = z.enum(['jsonata', 'xslt', 'liquid', 'javascript']);
@@ -127,7 +127,7 @@ export const transformTools = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       code: z.string(),
-      payload: z.unknown().describe('Sample payload (object/string depending on input_format)'),
+      payload: z.unknown().optional().describe('Sample payload (object/string depending on input_format)'),
       transform_type: transformTypeEnum.optional(),
       input_format: contentFormatEnum.optional(),
       output_format: contentFormatEnum.optional(),
