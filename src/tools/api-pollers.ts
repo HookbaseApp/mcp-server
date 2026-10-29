@@ -41,7 +41,7 @@ export const apiPollerTools = [
     inputSchema: z.object({
       name: z.string().describe('Display name for the poller'),
       source_id: z.string().describe('ID of the source to emit polled items into. The source must be provider "custom" (or have no signing secret) since polled items are signed with a generic HMAC scheme.'),
-      url: z.string().url().describe('URL to poll'),
+      url: z.url().describe('URL to poll'),
       cron_expression: z.string().describe('Cron expression for the poll schedule (e.g., "*/15 * * * *" for every 15 minutes)'),
       description: z.string().optional().describe('Optional description'),
       http_method: z.enum(['GET', 'POST', 'PUT']).optional().describe('HTTP method (default: GET)'),
@@ -96,7 +96,7 @@ export const apiPollerTools = [
       name: z.string().optional(),
       description: z.string().nullable().optional(),
       source_id: z.string().optional(),
-      url: z.string().url().optional(),
+      url: z.url().optional(),
       cron_expression: z.string().optional(),
       http_method: z.enum(['GET', 'POST', 'PUT']).optional(),
       headers: boundedRecord(z.string()).nullable().optional(),

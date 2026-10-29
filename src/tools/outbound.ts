@@ -289,7 +289,7 @@ export const endpointTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       application_id: z.string().describe('The application ID this endpoint belongs to'),
-      url: z.string().url().describe('The HTTPS URL to receive webhooks'),
+      url: z.url().describe('The HTTPS URL to receive webhooks'),
       description: z.string().optional().describe('Description of the endpoint'),
       headers: z.array(z.object({
         name: z.string().describe('Header name'),
@@ -340,7 +340,7 @@ export const endpointTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint to update'),
-      url: z.string().url().optional().describe('New HTTPS URL'),
+      url: z.url().optional().describe('New HTTPS URL'),
       description: z.string().optional().describe('New description'),
       headers: z.array(z.object({
         name: z.string().describe('Header name'),

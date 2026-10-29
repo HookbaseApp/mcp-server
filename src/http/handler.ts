@@ -65,7 +65,7 @@ function promptArguments(schema: z.ZodObject<z.ZodRawShape>) {
   return Object.entries(schema.shape as Record<string, z.ZodType>).map(([name, field]) => ({
     name,
     description: field.description,
-    required: !field.isOptional(),
+    required: !field.safeParse(undefined).success,
   }));
 }
 

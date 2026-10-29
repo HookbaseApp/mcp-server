@@ -41,7 +41,7 @@ export const cronTools = [
     inputSchema: z.object({
       name: z.string().describe('Display name for the cron job'),
       cron_expression: z.string().describe('Standard 5-field cron expression (minute hour day-of-month month day-of-week), evaluated in `timezone`. Examples: "0 * * * *" (top of every hour), "0 0 * * *" (daily at midnight), "*/15 * * * *" (every 15 minutes).'),
-      url: z.string().url().describe('URL to request when the job runs'),
+      url: z.url().describe('URL to request when the job runs'),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('HTTP method (default: POST)'),
       headers: boundedRecord(z.string()).optional().describe('Custom headers to include'),
       payload: z.string().optional().describe('Request body (for POST/PUT/PATCH)'),
@@ -113,7 +113,7 @@ export const cronTools = [
       description: z.string().optional(),
       cron_expression: z.string().optional(),
       timezone: z.string().optional(),
-      url: z.string().url().optional(),
+      url: z.url().optional(),
       method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional(),
       headers: boundedRecord(z.string()).optional(),
       payload: z.string().optional(),

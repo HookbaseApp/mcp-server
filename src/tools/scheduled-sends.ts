@@ -44,7 +44,7 @@ export const scheduledSendTools = [
       'Schedule a one-shot HTTP request to fire at a future time. URL must be http or https. scheduled_for must be a future ISO-8601 timestamp. Default method POST. headers and payload are arbitrary objects (JSON-encoded server-side).',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
-      url: z.string().url(),
+      url: z.url(),
       scheduled_for: z.string().describe('ISO-8601 timestamp; must be in the future'),
       name: z.string().max(200).optional(),
       description: z.string().max(1000).optional(),
@@ -88,7 +88,7 @@ export const scheduledSendTools = [
       send_id: z.string(),
       name: z.string().max(200).optional(),
       description: z.string().max(1000).optional(),
-      url: z.string().url().optional(),
+      url: z.url().optional(),
       method: z.string().optional(),
       headers: boundedRecord(z.string()).optional(),
       payload: z.unknown().optional(),
