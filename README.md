@@ -203,7 +203,7 @@ These define the filters, transforms, and schemas you attach to routes via `filt
 - `hookbase_delete_filter` - Delete a filter
 
 #### Transforms
-- `hookbase_list_transforms` - List transforms (JSONata / XSLT / Liquid / JS)
+- `hookbase_list_transforms` - List transforms (JSONata / JS / TS / Liquid / XSLT / JMESPath / JSON Logic / jq)
 - `hookbase_get_transform` - Get a transform's source code
 - `hookbase_create_transform` - Create a transform (server-side validated)
 - `hookbase_update_transform` - Update a transform
