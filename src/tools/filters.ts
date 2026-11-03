@@ -2,7 +2,7 @@
  * Filter tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const operatorEnum = z.enum([
@@ -60,7 +60,7 @@ export const filterTools = [
       name: z.string(),
       description: z.string().optional(),
       slug: z.string().optional().describe('URL-safe identifier (auto-derived from name if omitted)'),
-      conditions: z.array(conditionSchema).min(1),
+      conditions: z.array(conditionSchema).max(MAX_COLLECTION).min(1),
       logic: z.enum(['AND', 'OR']).optional().describe('How conditions combine (default AND)'),
     }).strict(),
     handler: async (args: {
@@ -83,7 +83,7 @@ export const filterTools = [
       filter_id: z.string(),
       name: z.string().optional(),
       description: z.string().nullable().optional(),
-      conditions: z.array(conditionSchema).optional(),
+      conditions: z.array(conditionSchema).max(MAX_COLLECTION).optional(),
       logic: z.enum(['AND', 'OR']).optional(),
     }).strict(),
     handler: async (args: {

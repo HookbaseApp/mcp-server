@@ -7,7 +7,7 @@
  * reads per-request config via getConfig() and talks to the REST API.
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 
 import { sourceTools } from './sources.js';

@@ -2,7 +2,7 @@
  * Delivery tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const deliveryTools = [
@@ -147,7 +147,7 @@ export const deliveryTools = [
         input_format: z.string().optional(),
         output_format: z.string().optional(),
       }).optional().describe('One-shot transform applied to this replay only, unless persist_transform=true'),
-      headers_override: z.record(z.string(), z.string()).optional().describe(
+      headers_override: boundedRecord(z.string()).optional().describe(
         'Outbound HTTP headers to send instead of/in addition to the destination\'s configured headers. ' +
         'Cannot set host, content-length, transfer-encoding, or connection. Max 50 entries.',
       ),
@@ -248,7 +248,7 @@ export const deliveryTools = [
         input_format: z.string().optional(),
         output_format: z.string().optional(),
       }).optional(),
-      headers_override: z.record(z.string(), z.string()).optional(),
+      headers_override: boundedRecord(z.string()).optional(),
       persist_transform: z.boolean().optional(),
       limit: z.number().int().min(1).max(2000).optional().describe('Max cluster deliveries to replay (default 500, hard cap 2000)'),
     }).strict(),

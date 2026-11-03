@@ -3,7 +3,7 @@
  * Help AI assistants understand how to use Hookbase tools effectively
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 
 export const hookbasePrompts = [
   {

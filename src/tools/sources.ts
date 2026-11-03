@@ -2,7 +2,7 @@
  * Source tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 // Mirrors VALID_INGEST_METHODS in api/src/routes/sources.ts. OPTIONS is excluded there because
@@ -119,7 +119,7 @@ export const sourceTools = [
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject webhooks with invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute (rate limiting)'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance). Disables replay and payload viewing.'),
-      allowed_methods: z.array(z.enum(INGEST_METHODS)).optional().describe(ALLOWED_METHODS_DESC),
+      allowed_methods: z.array(z.enum(INGEST_METHODS)).max(MAX_COLLECTION).optional().describe(ALLOWED_METHODS_DESC),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -178,7 +178,7 @@ export const sourceTools = [
       reject_invalid_signatures: z.boolean().optional().describe('Whether to reject invalid signatures'),
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance)'),
-      allowed_methods: z.array(z.enum(INGEST_METHODS)).optional().describe(ALLOWED_METHODS_DESC + ' Pass [] to revert to accepting any method.'),
+      allowed_methods: z.array(z.enum(INGEST_METHODS)).max(MAX_COLLECTION).optional().describe(ALLOWED_METHODS_DESC + ' Pass [] to revert to accepting any method.'),
     }).strict(),
     handler: async (args: {
       source_id: string;

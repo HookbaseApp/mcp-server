@@ -2,7 +2,7 @@
  * Tunnel tools for MCP server
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const tunnelTools = [

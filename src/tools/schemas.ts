@@ -2,7 +2,7 @@
  * Schema tools for MCP server
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const schemaTools = [
@@ -97,7 +97,7 @@ export const schemaTools = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: z.object({
       schema_id: z.string(),
-      payload: z.unknown(),
+      payload: z.unknown().optional(),
     }).strict(),
     handler: async (args: { schema_id: string; payload: unknown }) => {
       const result = await api.validateAgainstSchema(args.schema_id, args.payload);

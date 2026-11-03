@@ -3,7 +3,7 @@
  * Send events and track delivery messages
  */
 
-import { z } from 'zod';
+import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 export const outboundMessageTools = [
@@ -13,12 +13,12 @@ export const outboundMessageTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       event_type: z.string().describe('Event type name (e.g., "order.created")'),
-      payload: z.unknown().describe('Event payload (any JSON-serializable data)'),
+      payload: z.unknown().optional().describe('Event payload (any JSON-serializable data)'),
       application_id: z.string().optional().describe('Target a specific application only'),
       endpoint_id: z.string().optional().describe('Target a specific endpoint only'),
       idempotency_key: z.string().optional().describe('Unique key to prevent duplicate delivery'),
-      labels: z.record(z.string()).optional().describe('Labels for filtering subscriptions (e.g., {"environment": "production", "region": "us-east"})'),
-      metadata: z.record(z.unknown()).optional().describe('Additional metadata for the event'),
+      labels: boundedRecord(z.string()).optional().describe('Labels for filtering subscriptions (e.g., {"environment": "production", "region": "us-east"})'),
+      metadata: z.record(z.string(), z.unknown()).optional().describe('Additional metadata for the event'),
     }).strict(),
     handler: async (args: {
       event_type: string;

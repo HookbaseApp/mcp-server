@@ -2,7 +2,7 @@
  * API key management tools for MCP server
  */
 
-import { z } from 'zod';
+import { z, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const scopeEnum = z.enum(['read', 'write', 'delete']);
@@ -26,7 +26,7 @@ export const apiKeyTools = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     inputSchema: z.object({
       name: z.string().min(1).max(100),
-      scopes: z.array(scopeEnum).min(1).optional().describe('Default ["read","write"]'),
+      scopes: z.array(scopeEnum).max(MAX_COLLECTION).min(1).optional().describe('Default ["read","write"]'),
       expires_in: z.number().int().positive().optional().describe('Seconds from now until expiry (omit for no expiry)'),
     }).strict(),
     handler: async (args: { name: string; scopes?: api.ApiKeyScope[]; expires_in?: number }) => {

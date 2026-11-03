@@ -8,7 +8,7 @@
  * requires no auth by design.
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 import { getConfig } from '../lib/config.js';
 

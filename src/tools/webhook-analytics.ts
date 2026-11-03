@@ -2,7 +2,7 @@
  * Outbound webhook analytics tools for MCP server
  */
 
-import { z } from 'zod';
+import { z } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const timeRangeEnum = z.enum(['1h', '24h', '7d', '30d']);
