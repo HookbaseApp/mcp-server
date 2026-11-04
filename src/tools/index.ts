@@ -112,7 +112,11 @@ export const toolsets: Readonly<Record<string, readonly HookbaseTool[]>> = {
   transforms: transformTools,
   schemas: schemaTools,
   alerts: [...alertRuleTools, ...notificationChannelTools],
-  outbound: [...outboundTools, ...eventTypeTools, ...eventCatalogTools, ...outboundMessageTools, ...operationalWebhookTools],
+  // Outbound is split four ways: 38 tools in one group is more than a model can be offered at once.
+  outbound: outboundTools,
+  eventTypes: [...eventTypeTools, ...eventCatalogTools],
+  outboundMessages: outboundMessageTools,
+  operationalWebhooks: operationalWebhookTools,
   apiKeys: apiKeyTools,
   auditLogs: auditLogTools,
   redactionPolicies: redactionPolicyTools,
