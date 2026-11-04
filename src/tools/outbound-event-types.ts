@@ -11,6 +11,7 @@ export const eventTypeTools = [
     name: 'hookbase_list_event_types',
     description: 'List event types defined in the organization. Event types define the different kinds of webhook events that can be sent.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /event-types'],
     inputSchema: z.object({
       category: z.string().optional().describe('Filter by category'),
       is_enabled: z.boolean().optional().describe('Filter by enabled status'),
@@ -56,6 +57,7 @@ export const eventTypeTools = [
     name: 'hookbase_get_event_type',
     description: 'Get detailed information about an event type, including its JSON schema and example payload.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /event-types/:id'],
     inputSchema: z.object({
       event_type_id: z.string().describe('The ID of the event type'),
     }).strict(),
@@ -93,6 +95,7 @@ export const eventTypeTools = [
     name: 'hookbase_create_event_type',
     description: 'Create a new event type. Event types define the structure and meaning of webhook events.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /event-types'],
     inputSchema: z.object({
       name: z.string().describe('Event type name (lowercase, dot-separated, e.g., "order.created")'),
       display_name: z.string().optional().describe('Human-readable name'),
@@ -136,6 +139,7 @@ export const eventTypeTools = [
     name: 'hookbase_update_event_type',
     description: 'Update an event type. Deprecating it (is_deprecated) is advisory only — it does not block new subscriptions or stop delivery to existing ones; use is_enabled to actually disable it.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /event-types/:id'],
     inputSchema: z.object({
       event_type_id: z.string().describe('The ID of the event type to update'),
       display_name: z.string().optional().describe('New human-readable name'),
@@ -184,6 +188,7 @@ export const eventTypeTools = [
     name: 'hookbase_delete_event_type',
     description: 'Delete an event type. Cascades to delete every subscription referencing it, so subscribed endpoints stop receiving these events immediately — not reversible.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /event-types/:id'],
     inputSchema: z.object({
       event_type_id: z.string().describe('The ID of the event type to delete'),
     }).strict(),

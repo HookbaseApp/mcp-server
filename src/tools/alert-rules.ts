@@ -20,6 +20,7 @@ export const alertRuleTools = [
     name: 'hookbase_list_alert_rules',
     description: 'List configured alert rules. Each rule pairs a trigger condition (failure rate, source silence, latency, volume anomalies, schema drift) with one or more notification channels.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /alert-rules'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getAlertRules();
@@ -31,6 +32,7 @@ export const alertRuleTools = [
     name: 'hookbase_get_alert_rule',
     description: 'Get a single alert rule including its trigger config and notification channel IDs.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /alert-rules/:id'],
     inputSchema: z.object({
       rule_id: z.string(),
     }).strict(),
@@ -53,6 +55,7 @@ export const alertRuleTools = [
       '- schema_drift: { type, sourceId, alertOn? } (Pro+ only)\n' +
       'The "type" field inside trigger_config must equal trigger_type.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /alert-rules'],
     inputSchema: z.object({
       name: z.string().max(100),
       trigger_type: triggerTypeEnum,
@@ -84,6 +87,7 @@ export const alertRuleTools = [
     name: 'hookbase_update_alert_rule',
     description: 'Update an alert rule. Pass only fields you want to change.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /alert-rules/:id'],
     inputSchema: z.object({
       rule_id: z.string(),
       name: z.string().max(100).optional(),
@@ -115,6 +119,7 @@ export const alertRuleTools = [
     name: 'hookbase_delete_alert_rule',
     description: 'Delete an alert rule. Does not affect the notification channels it references — only the rule itself is removed.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /alert-rules/:id'],
     inputSchema: z.object({
       rule_id: z.string(),
     }).strict(),
@@ -128,6 +133,7 @@ export const alertRuleTools = [
     name: 'hookbase_test_alert_rule',
     description: 'Fire a test notification through all channels attached to this alert rule. This sends real requests to each channel\'s actual configured endpoint (Slack, email, PagerDuty, etc.) — this is not a dry run.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    routes: ['POST /alert-rules/:id/test'],
     inputSchema: z.object({
       rule_id: z.string(),
     }).strict(),

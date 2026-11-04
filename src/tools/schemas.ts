@@ -10,6 +10,7 @@ export const schemaTools = [
     name: 'hookbase_list_schemas',
     description: 'List JSON Schema definitions in the organization. Schemas validate event payloads on routes and reject malformed deliveries.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /schemas'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getSchemas();
@@ -21,6 +22,7 @@ export const schemaTools = [
     name: 'hookbase_get_schema',
     description: 'Get a JSON Schema definition (parsed as an object).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /schemas/:id'],
     inputSchema: z.object({
       schema_id: z.string().describe('Schema ID or slug'),
     }).strict(),
@@ -34,6 +36,7 @@ export const schemaTools = [
     name: 'hookbase_create_schema',
     description: 'Create a JSON Schema. Requires the "schemas" feature on the org plan. The slug is derived from the name.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /schemas'],
     inputSchema: z.object({
       name: z.string(),
       description: z.string().optional(),
@@ -57,6 +60,7 @@ export const schemaTools = [
     name: 'hookbase_update_schema',
     description: 'Update a schema. Pass any subset of name/description/json_schema. Uses HTTP PUT under the hood.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PUT /schemas/:id'],
     inputSchema: z.object({
       schema_id: z.string(),
       name: z.string().optional(),
@@ -82,6 +86,7 @@ export const schemaTools = [
     name: 'hookbase_delete_schema',
     description: 'Delete a schema. Not blocked if a route still references it — the route\'s schema_id is cleared (set null), silently disabling its payload validation.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /schemas/:id'],
     inputSchema: z.object({
       schema_id: z.string(),
     }).strict(),
@@ -95,6 +100,7 @@ export const schemaTools = [
     name: 'hookbase_validate_against_schema',
     description: 'Validate a sample payload against a stored schema and return any validation errors.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['POST /schemas/:id/validate'],
     inputSchema: z.object({
       schema_id: z.string(),
       payload: z.unknown().optional(),

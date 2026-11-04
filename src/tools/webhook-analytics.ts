@@ -13,6 +13,7 @@ export const webhookAnalyticsTools = [
     description:
       'Get outbound webhook delivery analytics: status counts, success rate, latency percentiles, top failing endpoints, error type breakdown, DLQ reasons, and a time-bucketed chart series. Optionally filter by application_id and/or endpoint_id.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhooks/analytics'],
     inputSchema: z.object({
       time_range: timeRangeEnum.optional().describe('Default "24h"'),
       application_id: z.string().optional(),
@@ -32,6 +33,7 @@ export const webhookAnalyticsTools = [
     name: 'hookbase_get_webhook_endpoint_analytics',
     description: 'Get analytics for a single outbound webhook endpoint: circuit-breaker state, lifetime totals, status counts, average response time, and the most recent 100 delivery attempts in the window.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhooks/analytics/endpoints/:id'],
     inputSchema: z.object({
       endpoint_id: z.string(),
       time_range: timeRangeEnum.optional().describe('Default "24h"'),

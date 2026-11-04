@@ -31,6 +31,7 @@ export const providerCatalogTools = [
     name: 'hookbase_list_providers',
     description: 'List the webhook providers in Hookbase\'s catalog (Stripe, GitHub, Shopify, WhatsApp, ...), optionally filtered by category or a search term matched against name, description and category. Each entry gives the catalog id, the hookbaseProvider value to pass as provider to hookbase_create_source (it can differ from the id — several catalog entries map to "custom"), and a signature-verification summary. ' + SECRET_SOURCE_DESC + ' Call hookbase_get_provider for the full instructions before asking the user for a secret.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /api/catalog/providers'],
     inputSchema: z.object({
       category: z.string().optional().describe(`Only providers in this category: ${CATEGORIES}`),
       search: z.string().optional().describe('Case-insensitive text matched against provider name, description and category (e.g. "stripe", "whatsapp")'),
@@ -63,6 +64,7 @@ export const providerCatalogTools = [
     name: 'hookbase_get_provider',
     description: 'Get one catalog provider\'s full setup detail: hookbaseProvider (the provider value for hookbase_create_source), signatureVerification (algorithm, headerName, kind, secretSource, secretLabel — the vendor\'s own name for the credential, secretInstruction — where the user copies it from or pastes it into, secretPlaceholder, secretFormat, secretAfterRegistration, and verifyToken {label, instruction} for Meta/WhatsApp, whose create response returns a verify token the user enters in Meta), setupGuide steps, docsUrl, ipRanges, and the event type names. ' + SECRET_SOURCE_DESC,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /api/catalog/providers/:provider'],
     inputSchema: z.object({
       provider_id: z.string().describe('Catalog provider id from hookbase_list_providers (e.g. "stripe", "github", "mollie-nextgen")'),
     }).strict(),

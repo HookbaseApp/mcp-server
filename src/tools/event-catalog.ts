@@ -17,6 +17,7 @@ export const eventCatalogTools = [
     name: 'hookbase_get_public_catalog',
     description: 'List an organization\'s published event types as they appear in the public event catalog. Defaults to your own organization — pass org_slug to preview another org\'s catalog. Only event types marked is_public and is_enabled (see hookbase_update_event_type) appear here.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    routes: ['GET /api/event-catalog/:orgSlug'],
     inputSchema: z.object({
       org_slug: z.string().optional().describe('Organization slug to look up; defaults to your own organization'),
     }).strict(),
@@ -31,6 +32,7 @@ export const eventCatalogTools = [
     name: 'hookbase_get_public_catalog_event_type',
     description: 'Get full published detail (schema + example payload) for one event type from the public event catalog. Defaults to your own organization — pass org_slug to look up another org\'s catalog.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    routes: ['GET /api/event-catalog/:orgSlug/:eventType'],
     inputSchema: z.object({
       event_type_name: z.string().describe('The event type name, e.g. "order.created"'),
       org_slug: z.string().optional().describe('Organization slug to look up; defaults to your own organization'),

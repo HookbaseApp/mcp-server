@@ -13,6 +13,7 @@ export const transformTools = [
     name: 'hookbase_list_transforms',
     description: 'List transform definitions. Transforms reshape an event payload before delivery (JSONata, JavaScript, TypeScript, Liquid, XSLT, JMESPath, JSON Logic, or jq; jq may be unavailable on servers without transform isolation).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /transforms'],
     inputSchema: z.object({
       page: z.number().optional(),
       page_size: z.number().optional(),
@@ -27,6 +28,7 @@ export const transformTools = [
     name: 'hookbase_get_transform',
     description: 'Get a transform definition including its source code, language, and input/output formats.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /transforms/:id'],
     inputSchema: z.object({
       transform_id: z.string().describe('Transform ID or slug'),
     }).strict(),
@@ -40,6 +42,7 @@ export const transformTools = [
     name: 'hookbase_create_transform',
     description: 'Create a transform that reshapes payloads. The code is validated server-side before being saved. Requires the "transforms" feature on the org plan.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /transforms'],
     inputSchema: z.object({
       name: z.string(),
       slug: z.string().optional(),
@@ -75,6 +78,7 @@ export const transformTools = [
     name: 'hookbase_update_transform',
     description: 'Update a transform. If `code` changes it is re-validated server-side.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /transforms/:id'],
     inputSchema: z.object({
       transform_id: z.string(),
       name: z.string().optional(),
@@ -112,6 +116,7 @@ export const transformTools = [
     name: 'hookbase_delete_transform',
     description: 'Delete a transform. Any route or subscription referencing it has the reference cleared (set to null) rather than being blocked — delivery continues, minus the transform step.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /transforms/:id'],
     inputSchema: z.object({
       transform_id: z.string(),
     }).strict(),
@@ -125,6 +130,7 @@ export const transformTools = [
     name: 'hookbase_test_transform',
     description: 'Run a transform expression against a sample payload without saving. Useful for iterating on JSONata/JS/TS/Liquid/XSLT/JMESPath/JSON Logic/jq code.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['POST /transforms/test'],
     inputSchema: z.object({
       code: z.string(),
       payload: z.unknown().optional().describe('Sample payload (object/string depending on input_format)'),
