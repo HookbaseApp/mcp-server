@@ -10,6 +10,7 @@ export const signatureTools = [
     name: 'hookbase_verify_signature',
     description: 'Check whether a webhook signature matches a payload and secret, using the same verification logic as inbound ingest signature checking. Useful for debugging a rejected webhook or validating a provider integration before wiring up a source. Read-only - makes no changes and does not require an existing source.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['POST /testing/signature/verify'],
     inputSchema: z.object({
       provider: z.string().describe('Signature provider id, e.g. stripe, github, shopify, gitlab, paddle, square, linear'),
       payload: z.string().describe('Raw request body exactly as received - the exact bytes/string the signature was computed over'),

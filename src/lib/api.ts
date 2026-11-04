@@ -4,6 +4,7 @@
  */
 
 import { getConfig } from './config.js';
+import { currentContext } from './context.js';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -26,8 +27,11 @@ async function request<T>(
     'Authorization': `Bearer ${config.apiKey}`,
   };
 
+  // A host running the tools in-process supplies its own fetch (see context.ts).
+  const send = currentContext()?.fetch ?? fetch;
+
   try {
-    const response = await fetch(`${config.apiUrl}${path}`, {
+    const response = await send(`${config.apiUrl}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,

@@ -16,6 +16,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_list_operational_webhooks',
     description: 'List operational webhooks configured for a webhook application.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /applications/:appId/operational-webhooks'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
     }).strict(),
@@ -29,6 +30,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_get_operational_webhook',
     description: 'Get details for a single operational webhook, including delivery counters and last error.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /applications/:appId/operational-webhooks/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID'),
@@ -43,6 +45,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_create_operational_webhook',
     description: 'Create an operational webhook for an application. Returns a whsec_-prefixed signing secret shown only once — save it immediately.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /applications/:appId/operational-webhooks'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       url: z.url().describe('URL to notify (HTTPS required, except localhost for development)'),
@@ -89,6 +92,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_update_operational_webhook',
     description: 'Update an operational webhook\'s URL, description, subscribed event flags, or enabled state. Pass only the fields you want to change.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /applications/:appId/operational-webhooks/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID'),
@@ -137,6 +141,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_delete_operational_webhook',
     description: 'Delete an operational webhook. Does not affect the application\'s actual outbound endpoints or traffic.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /applications/:appId/operational-webhooks/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID to delete'),
@@ -151,6 +156,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_get_operational_webhook_logs',
     description: 'Get recent delivery logs for an operational webhook, for debugging why notifications aren\'t arriving.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /applications/:appId/operational-webhooks/:id/logs'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID'),
@@ -166,6 +172,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_test_operational_webhook',
     description: 'Send a test event of every operational webhook type to verify connectivity and signature handling. Makes a real HTTP request to the configured URL for each type.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    routes: ['POST /applications/:appId/operational-webhooks/:id/test'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID to test'),
@@ -180,6 +187,7 @@ export const operationalWebhookTools = [
     name: 'hookbase_rotate_operational_webhook_secret',
     description: 'Rotate the signing secret for an operational webhook. Takes effect immediately (no grace period) — the new secret is returned once and must be saved.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /applications/:appId/operational-webhooks/:id/rotate-secret'],
     inputSchema: z.object({
       application_id: z.string().describe('The webhook application ID'),
       webhook_id: z.string().describe('The operational webhook ID'),

@@ -1,9 +1,17 @@
 {
   "name": "@hookbase/mcp-server",
-  "version": "2.12.0",
+  "version": "2.13.0",
   "description": "MCP server for Hookbase webhook relay API - manage webhooks, deliveries, and tunnels from AI assistants",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./catalog": {
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "hookbase-mcp": "dist/index.js"
   },

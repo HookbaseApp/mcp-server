@@ -10,6 +10,7 @@ export const cronGroupTools = [
     name: 'hookbase_list_cron_groups',
     description: 'List cron job groups. Groups organize cron jobs in the dashboard and can be referenced via group_id when creating/updating jobs.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /cron-groups'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getCronGroups();
@@ -21,6 +22,7 @@ export const cronGroupTools = [
     name: 'hookbase_get_cron_group',
     description: 'Get a single cron group by ID or slug.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /cron-groups/:id'],
     inputSchema: z.object({
       group_id: z.string().describe('Group ID or slug'),
     }).strict(),
@@ -34,6 +36,7 @@ export const cronGroupTools = [
     name: 'hookbase_create_cron_group',
     description: 'Create a cron group. Slug is derived from the name. New groups are appended to the end of the sort order.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /cron-groups'],
     inputSchema: z.object({
       name: z.string(),
       description: z.string().optional(),
@@ -48,6 +51,7 @@ export const cronGroupTools = [
     name: 'hookbase_update_cron_group',
     description: 'Update a cron group\'s name, description, sort order, or collapsed state. Only the fields you provide are changed; omitted fields keep their current value.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /cron-groups/:id'],
     inputSchema: z.object({
       group_id: z.string(),
       name: z.string().optional(),
@@ -76,6 +80,7 @@ export const cronGroupTools = [
     name: 'hookbase_delete_cron_group',
     description: 'Delete a cron group. Jobs in this group are not deleted; their group_id is set to null.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /cron-groups/:id'],
     inputSchema: z.object({
       group_id: z.string(),
     }).strict(),

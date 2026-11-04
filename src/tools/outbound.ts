@@ -15,6 +15,7 @@ export const applicationTools = [
     name: 'hookbase_list_applications',
     description: 'List webhook applications in the organization. Applications group endpoints that receive outbound webhooks for a customer or integration.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-applications'],
     inputSchema: z.object({
       search: z.string().optional().describe('Search by application name'),
       is_enabled: z.boolean().optional().describe('Filter by enabled status (false = disabled)'),
@@ -58,6 +59,7 @@ export const applicationTools = [
     name: 'hookbase_get_application',
     description: 'Get detailed information about a specific webhook application, including its endpoints and delivery statistics.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-applications/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The ID of the webhook application'),
     }).strict(),
@@ -94,6 +96,7 @@ export const applicationTools = [
     name: 'hookbase_create_application',
     description: 'Create a new webhook application. Applications represent a customer or integration that will receive webhooks.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /webhook-applications'],
     inputSchema: z.object({
       name: z.string().describe('Display name for the application'),
       external_id: z.string().optional().describe('Your system\'s ID for this customer/application'),
@@ -131,6 +134,7 @@ export const applicationTools = [
     name: 'hookbase_update_application',
     description: 'Update a webhook application configuration.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /webhook-applications/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The ID of the application to update'),
       name: z.string().optional().describe('New display name'),
@@ -170,6 +174,7 @@ export const applicationTools = [
     name: 'hookbase_delete_application',
     description: 'Delete a webhook application. Cascades to permanently delete all its endpoints and their subscriptions, but past outbound message/delivery history is retained, not cascaded.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /webhook-applications/:id'],
     inputSchema: z.object({
       application_id: z.string().describe('The ID of the application to delete'),
     }).strict(),
@@ -192,6 +197,7 @@ export const endpointTools = [
     name: 'hookbase_list_endpoints',
     description: 'List webhook endpoints. Endpoints are URLs that receive webhook deliveries.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-endpoints'],
     inputSchema: z.object({
       application_id: z.string().optional().describe('Filter by application ID'),
       is_enabled: z.boolean().optional().describe('Filter by enabled status (false = disabled)'),
@@ -239,6 +245,7 @@ export const endpointTools = [
     name: 'hookbase_get_endpoint',
     description: 'Get detailed information about a webhook endpoint, including circuit breaker state and delivery statistics.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-endpoints/:id'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint'),
     }).strict(),
@@ -287,6 +294,7 @@ export const endpointTools = [
     name: 'hookbase_create_endpoint',
     description: 'Create a new webhook endpoint. The signing secret is only returned once on creation - save it securely.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /webhook-endpoints'],
     inputSchema: z.object({
       application_id: z.string().describe('The application ID this endpoint belongs to'),
       url: z.url().describe('The HTTPS URL to receive webhooks'),
@@ -338,6 +346,7 @@ export const endpointTools = [
     name: 'hookbase_update_endpoint',
     description: 'Update a webhook endpoint configuration.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /webhook-endpoints/:id'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint to update'),
       url: z.url().optional().describe('New HTTPS URL'),
@@ -386,6 +395,7 @@ export const endpointTools = [
     name: 'hookbase_delete_endpoint',
     description: 'Delete a webhook endpoint. Cascades to permanently delete its subscriptions, but past outbound message/delivery history for the endpoint is retained, not cascaded.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /webhook-endpoints/:id'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint to delete'),
     }).strict(),
@@ -401,6 +411,7 @@ export const endpointTools = [
     name: 'hookbase_rotate_endpoint_secret',
     description: 'Rotate the signing secret for an endpoint. Returns the new secret (save it securely) - the old secret keeps verifying signatures until the grace period expires, then stops working entirely.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /webhook-endpoints/:id/rotate-secret'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint'),
       grace_period_seconds: z.number().optional().describe('How long old secret remains valid (default 3600 = 1 hour)'),
@@ -422,6 +433,7 @@ export const endpointTools = [
     name: 'hookbase_reset_endpoint_circuit',
     description: 'Reset the circuit breaker for an endpoint. Forces it closed and zeroes the failure count immediately, without verifying the endpoint is actually healthy - only use after confirming the underlying issue is fixed.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['POST /webhook-endpoints/:id/reset-circuit'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The ID of the endpoint'),
     }).strict(),
@@ -447,6 +459,7 @@ export const subscriptionTools = [
     name: 'hookbase_list_subscriptions',
     description: 'List webhook subscriptions. Subscriptions connect endpoints to event types they should receive.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-subscriptions'],
     inputSchema: z.object({
       endpoint_id: z.string().optional().describe('Filter by endpoint ID'),
       event_type_id: z.string().optional().describe('Filter by event type ID'),
@@ -499,6 +512,7 @@ export const subscriptionTools = [
     name: 'hookbase_get_subscription',
     description: 'Get detailed information about a webhook subscription.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /webhook-subscriptions/:id'],
     inputSchema: z.object({
       subscription_id: z.string().describe('The ID of the subscription'),
     }).strict(),
@@ -531,6 +545,7 @@ export const subscriptionTools = [
     name: 'hookbase_create_subscription',
     description: 'Create a subscription to connect an endpoint to an event type. The endpoint will receive events of this type. Use label_filters to only receive events with matching labels.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /webhook-subscriptions'],
     inputSchema: z.object({
       endpoint_id: z.string().describe('The endpoint ID to subscribe'),
       event_type_id: z.string().describe('The event type ID to subscribe to'),
@@ -571,6 +586,7 @@ export const subscriptionTools = [
     name: 'hookbase_update_subscription',
     description: 'Update a webhook subscription.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /webhook-subscriptions/:id'],
     inputSchema: z.object({
       subscription_id: z.string().describe('The ID of the subscription to update'),
       filter_expression: z.string().optional().describe('New filter expression (null to remove)'),
@@ -604,6 +620,7 @@ export const subscriptionTools = [
     name: 'hookbase_delete_subscription',
     description: 'Delete a webhook subscription. The endpoint will no longer receive events of this type; the endpoint and event type themselves are unaffected, and no further cascade occurs.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /webhook-subscriptions/:id'],
     inputSchema: z.object({
       subscription_id: z.string().describe('The ID of the subscription to delete'),
     }).strict(),

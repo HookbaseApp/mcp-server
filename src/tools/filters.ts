@@ -29,6 +29,7 @@ export const filterTools = [
     name: 'hookbase_list_filters',
     description: 'List filter definitions in the organization. Filters are reusable condition sets attached to routes to gate which events are delivered.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /filters'],
     inputSchema: z.object({
       page: z.number().optional(),
       page_size: z.number().optional().describe('Page size (max 100)'),
@@ -43,6 +44,7 @@ export const filterTools = [
     name: 'hookbase_get_filter',
     description: 'Get a filter definition including its conditions and AND/OR logic.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /filters/:id'],
     inputSchema: z.object({
       filter_id: z.string().describe('Filter ID or slug'),
     }).strict(),
@@ -56,6 +58,7 @@ export const filterTools = [
     name: 'hookbase_create_filter',
     description: 'Create a reusable filter that can be attached to routes. A filter evaluates a list of conditions (combined via AND or OR) against incoming event payloads.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /filters'],
     inputSchema: z.object({
       name: z.string(),
       description: z.string().optional(),
@@ -79,6 +82,7 @@ export const filterTools = [
     name: 'hookbase_update_filter',
     description: 'Update a filter\'s name, description, conditions, or logic. Pass only the fields you want to change.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /filters/:id'],
     inputSchema: z.object({
       filter_id: z.string(),
       name: z.string().optional(),
@@ -103,6 +107,7 @@ export const filterTools = [
     name: 'hookbase_delete_filter',
     description: 'Delete a filter. Routes referencing it will have the reference cleared.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /filters/:id'],
     inputSchema: z.object({
       filter_id: z.string(),
     }).strict(),

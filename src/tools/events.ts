@@ -11,6 +11,7 @@ export const eventTools = [
     name: 'hookbase_list_events',
     description: 'Query webhook events with optional filters. An event is one inbound webhook received by a source, before routing — use hookbase_list_deliveries instead to see outbound forwarding attempts for an event. Results are sorted newest first and support pagination via limit/offset. search matches against the event payload only, not headers. For polling new events as they arrive, use hookbase_tail_events instead of repeatedly increasing offset here. Follow up on a specific row with hookbase_get_event for the full payload and its deliveries.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /events'],
     inputSchema: z.object({
       limit: z.number().optional().describe('Maximum number of events to return (default: 50; no enforced maximum, but very large values may be slow)'),
       offset: z.number().optional().describe('Number of events to skip for pagination'),
@@ -61,6 +62,7 @@ export const eventTools = [
     name: 'hookbase_tail_events',
     description: 'Poll for events newer than a previous call, for lightweight monitoring. Not a live stream (MCP tool calls are request/response, not push) - call it repeatedly, each time passing the newestReceivedAt from the prior response as since. Returns the most recent `limit` matching events at/after since, newest first; if more than `limit` new events arrived between polls, older ones within that window are omitted - poll more often or raise limit to avoid gaps. Omit since on the first call to get a starting snapshot.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /events'],
     inputSchema: z.object({
       source_id: z.string().optional().describe('Filter to events from this source only (source ID or slug)'),
       since: z.string().optional().describe('ISO 8601 timestamp - only return events received at or after this time. Pass the previous response\'s newestReceivedAt to continue tailing forward. Omit for an initial snapshot of the most recent events.'),
@@ -98,6 +100,7 @@ export const eventTools = [
     name: 'hookbase_get_event',
     description: 'Get detailed information about a specific event, including the full payload and all delivery attempts.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /events/:id'],
     inputSchema: z.object({
       event_id: z.string().describe('The ID of the event to retrieve'),
     }).strict(),
@@ -139,6 +142,7 @@ export const eventTools = [
     name: 'hookbase_get_event_debug',
     description: 'Generate a cURL command that reproduces how an event originally arrived, for debugging. This is read-only — it makes no outbound calls itself. Running the generated command re-ingests the payload as a brand-new event; it does not replay or retry the original delivery (use hookbase_replay_delivery for that).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /events/:id', 'GET /sources/:id'],
     inputSchema: z.object({
       event_id: z.string().describe('The ID of the event to generate cURL for'),
     }).strict(),

@@ -11,6 +11,7 @@ export const auditLogTools = [
     description:
       'List org audit log entries with optional filters. Admins/owners always have access; non-admins require the "audit_logs" feature on the plan. Filter by action, entityType, or userId.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /audit-logs'],
     inputSchema: z.object({
       limit: z.number().int().min(1).max(100).optional().describe('Default 50, max 100'),
       offset: z.number().int().min(0).optional(),
@@ -34,6 +35,7 @@ export const auditLogTools = [
     name: 'hookbase_list_audit_log_actions',
     description: 'List the distinct action types present in this org\'s audit log. Useful for discovering filter values.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /audit-logs/actions'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getAuditLogActions();
@@ -45,6 +47,7 @@ export const auditLogTools = [
     name: 'hookbase_list_audit_log_users',
     description: 'List the distinct users who appear in this org\'s audit log. Useful for discovering user_id filter values.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /audit-logs/users'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getAuditLogUsers();

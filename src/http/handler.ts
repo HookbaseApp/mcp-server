@@ -21,6 +21,7 @@ import { allTools, type HookbaseTool } from '../tools/index.js';
 import { hookbaseResources } from '../resources/index.js';
 import { hookbasePrompts } from '../prompts/index.js';
 import { runWithConfig } from '../lib/context.js';
+import { toolInputSchema } from '../catalog.js';
 import { AuthError, extractApiKey, resolveConfig } from './auth.js';
 
 const LATEST_PROTOCOL = '2025-06-18';
@@ -75,17 +76,12 @@ let toolListCache:
   | null = null;
 function toolList() {
   if (!toolListCache) {
-    toolListCache = allTools.map((t) => {
-      // io: 'input' describes what a caller may send, so a field with a default is not required.
-      const schema = z.toJSONSchema(t.inputSchema, { target: 'draft-7', io: 'input' }) as Record<string, unknown>;
-      delete schema.$schema;
-      return {
-        name: t.name,
-        description: t.description,
-        inputSchema: schema,
-        ...(t.annotations ? { annotations: t.annotations } : {}),
-      };
-    });
+    toolListCache = allTools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: toolInputSchema(t),
+      ...(t.annotations ? { annotations: t.annotations } : {}),
+    }));
   }
   return toolListCache;
 }

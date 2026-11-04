@@ -48,6 +48,7 @@ export const sourceTools = [
     name: 'hookbase_list_sources',
     description: 'List all webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount and routeCount; use hookbase_get_source for one source\'s full configuration.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getSources();
@@ -74,6 +75,7 @@ export const sourceTools = [
     name: 'hookbase_get_source',
     description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_reveal_source_secret to read the full value. awaitingSigningSecret=true means no secret is stored and only the vendor can issue one (e.g. Stripe or Shopify when the create omitted it, or Asana/Notion, which issue it only after the ingest URL is registered), so events are accepted but not verified until it is set with hookbase_update_source signing_secret (or, for Notion, adopted via hookbase_adopt_source_pending_verification). verifiesWithoutSecret=true means the provider publishes a key Hookbase already has (wise, aws-sns), so events are verified with no secret.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -109,6 +111,7 @@ export const sourceTools = [
     name: 'hookbase_create_source',
     description: 'Create a new webhook source. Sources receive incoming webhooks and can be connected to destinations via routes. Before creating one for a named vendor, call hookbase_get_provider to find the right provider value and its secretSource: if it is "provider" or "public_key", ask the user for the vendor-issued secret/key and pass it as signing_secret (for public keys and format-checked vendor keys such as Standard Webhooks/svix the API rejects the create without it; for the rest the source is created with no secret and awaitingSigningSecret=true, so events are not verified until it is set); if it is "operator", omit signing_secret and give the user the returned signingSecret to paste into the vendor — it is shown only here (hookbase_reveal_source_secret can read it later). The response also carries ingestUrl (the URL to register with the vendor), verifyToken for WhatsApp/Meta, and awaitingSigningSecret=true when no secret was stored for a vendor-issued provider (including Asana and Notion, which issue it only after the URL is registered).',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /sources'],
     inputSchema: z.object({
       name: z.string().describe('Display name for the source'),
       slug: z.string().describe('URL-safe identifier, lowercase letters, digits and dashes (e.g., "github-webhooks")'),
@@ -167,6 +170,7 @@ export const sourceTools = [
     name: 'hookbase_update_source',
     description: 'Update an existing source\'s configuration — name, provider, signing secret, verify token, signature enforcement, rate limit, transient mode, or allowed methods. Only the fields you provide are changed; omitted fields keep their current value. Switching to a provider whose secret the vendor issues requires signing_secret in the same update. Turning on reject_invalid_signatures immediately starts rejecting webhooks that fail verification; turning on transient_mode stops new payloads from being stored at rest but does not retroactively delete payloads already stored. To have Hookbase generate a fresh secret use hookbase_rotate_source_secret instead. Returns only a confirmation — call hookbase_get_source (or hookbase_get_source_verify_token) to read the result.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /sources/:id'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
       name: z.string().optional().describe('New display name'),
@@ -216,6 +220,7 @@ export const sourceTools = [
     name: 'hookbase_delete_source',
     description: 'Delete a webhook source. Cascades to delete its routes, their deliveries, and every event ever ingested through this source — event history is not recoverable afterward.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /sources/:id'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -231,6 +236,7 @@ export const sourceTools = [
     name: 'hookbase_rotate_source_secret',
     description: 'Have Hookbase generate a new signing secret for a source. Returns the new secret (save it securely) - unlike endpoint secret rotation, there is no grace period: the old secret stops verifying signatures immediately, so update every sender using it before rotating. Only works for providers whose secret Hookbase generates (secretSource "operator", or custom/no provider). The API returns 400 for built-in-key providers (wise, wise-sandbox, aws-sns: nothing to rotate), public-key providers (paste the vendor\'s new key via hookbase_update_source signing_secret), vendor-issued secrets such as Standard Webhooks/svix/clerk/resend, gitlab-signing-token or airtable (regenerate it at the vendor, then set it with hookbase_update_source), and every other provider whose secret the vendor issues (secretSource "provider", e.g. stripe, shopify, slack, twilio, and asana/notion after registration).',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /sources/:id/rotate-secret'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -249,6 +255,7 @@ export const sourceTools = [
     name: 'hookbase_reveal_source_secret',
     description: 'Reveal the full signing secret currently stored on a source (hookbase_get_source only shows the last 4 characters). Use it when the user needs to paste a Hookbase-generated secret into the vendor after the create response is gone. Returns 404 when the source has no secret (built-in-key providers, or one still awaiting its secret). Requires an API key with write scope and a member+ role.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id/reveal-secret'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -264,6 +271,7 @@ export const sourceTools = [
     name: 'hookbase_get_source_verify_token',
     description: 'Read the verify token of a WhatsApp/Meta source — the value the user enters in Meta\'s "Verify token" field when registering the ingest URL. Returns 400 for providers that have no verify token. Requires an API key with write scope and a member+ role.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id/verify-token'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -279,6 +287,7 @@ export const sourceTools = [
     name: 'hookbase_rotate_source_verify_token',
     description: 'Generate a new verify token for a WhatsApp/Meta source and return it. The old token stops answering Meta\'s registration check immediately, so the user must enter the new one in Meta before re-verifying the URL. Already-registered webhooks keep flowing (the token is only checked at registration). Returns 400 for providers that have no verify token.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /sources/:id/rotate-verify-token'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -297,6 +306,7 @@ export const sourceTools = [
     name: 'hookbase_get_source_pending_verification',
     description: 'Show the verification token a vendor delivered to the source\'s ingest URL during registration and Hookbase parked instead of trusting (currently Notion, whose subscription sends a verification_token that is also its signing secret). Returns {provider, token, receivedAt, clientIp}, or a 404 error when nothing is waiting. The user pastes the token into the vendor\'s Verify form; once the vendor shows the subscription as verified, call hookbase_adopt_source_pending_verification.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id/pending-verification'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),
@@ -312,6 +322,7 @@ export const sourceTools = [
     name: 'hookbase_adopt_source_pending_verification',
     description: 'Make the parked verification token (see hookbase_get_source_pending_verification) this source\'s signing secret, replacing any existing one, and discard the pending copy. The token arrived unauthenticated, so only adopt it after the user confirms the vendor accepted it (e.g. Notion shows the subscription as verified). Returns a 404 error when no token is waiting.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /sources/:id/pending-verification/adopt'],
     inputSchema: z.object({
       source_id: z.string().describe(SOURCE_ID_DESC),
     }).strict(),

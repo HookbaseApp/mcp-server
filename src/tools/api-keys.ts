@@ -12,6 +12,7 @@ export const apiKeyTools = [
     name: 'hookbase_list_api_keys',
     description: 'List API keys for the current org. Returns id, name, key prefix, scopes, expiry — never the raw key (which is only returned once at creation).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /api-keys'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getApiKeys();
@@ -24,6 +25,7 @@ export const apiKeyTools = [
     description:
       'Create a new API key (admin or owner only). The raw key is returned ONCE in the response under `apiKey.key` — store it securely; it cannot be retrieved later. Default scopes are ["read","write"]. Pass expiresIn (seconds from now) for time-limited keys.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /api-keys'],
     inputSchema: z.object({
       name: z.string().min(1).max(100),
       scopes: z.array(scopeEnum).max(MAX_COLLECTION).min(1).optional().describe('Default ["read","write"]'),
@@ -46,6 +48,7 @@ export const apiKeyTools = [
     name: 'hookbase_delete_api_key',
     description: 'Delete (revoke) an API key. Admin or owner only, requires the "delete" scope; the key currently being used to authenticate this request cannot be deleted. Revocation is not instant: a 5-minute validation cache may let the key keep authenticating briefly after deletion.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /api-keys/:id'],
     inputSchema: z.object({
       key_id: z.string(),
     }).strict(),

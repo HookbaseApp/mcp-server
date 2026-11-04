@@ -14,6 +14,7 @@ export const apiPollerTools = [
     name: 'hookbase_list_api_pollers',
     description: 'List all API pollers in the organization. Pollers make scheduled HTTP requests to a third-party API and re-emit new/changed items as inbound events.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /api-pollers'],
     inputSchema: z.object({}).strict(),
     handler: async () => {
       const result = await api.getApiPollers();
@@ -25,6 +26,7 @@ export const apiPollerTools = [
     name: 'hookbase_get_api_poller',
     description: 'Get full details for a single API poller, including its schedule, target URL, response parsing config, and last-run status.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /api-pollers/:id'],
     inputSchema: z.object({
       poller_id: z.string().describe('API poller ID'),
     }).strict(),
@@ -38,6 +40,7 @@ export const apiPollerTools = [
     name: 'hookbase_create_api_poller',
     description: 'Create a new API poller. On each scheduled run it makes an HTTP request to url, extracts a list of items from the JSON response (response_path), and emits each new item as an event on source_id. Items are deduped across runs by id_field.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /api-pollers'],
     inputSchema: z.object({
       name: z.string().describe('Display name for the poller'),
       source_id: z.string().describe('ID of the source to emit polled items into. The source must be provider "custom" (or have no signing secret) since polled items are signed with a generic HMAC scheme.'),
@@ -91,6 +94,7 @@ export const apiPollerTools = [
     name: 'hookbase_update_api_poller',
     description: 'Update an API poller. Pass only the fields you want to change.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /api-pollers/:id'],
     inputSchema: z.object({
       poller_id: z.string(),
       name: z.string().optional(),
@@ -146,6 +150,7 @@ export const apiPollerTools = [
     name: 'hookbase_delete_api_poller',
     description: 'Delete an API poller. Does not affect the source it fed or events it already emitted.',
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    routes: ['DELETE /api-pollers/:id'],
     inputSchema: z.object({
       poller_id: z.string().describe('The ID of the API poller to delete'),
     }).strict(),
@@ -159,6 +164,7 @@ export const apiPollerTools = [
     name: 'hookbase_trigger_api_poller',
     description: 'Manually run an API poller immediately, regardless of its schedule. Makes a real HTTP request to the poller\'s target URL and emits any new items as events; never delays or skips the next scheduled run.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    routes: ['POST /api-pollers/:id/trigger'],
     inputSchema: z.object({
       poller_id: z.string().describe('The ID of the API poller to trigger'),
     }).strict(),

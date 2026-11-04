@@ -386,6 +386,21 @@ Want to try the tools out before wiring the server into a client? The [MCP Inspe
 HOOKBASE_API_KEY=whr_... npx -y @modelcontextprotocol/inspector npx -y @hookbase/mcp-server
 ```
 
+## Using the tools without MCP
+
+`@hookbase/mcp-server/catalog` exports the same tools for a host that runs them itself; the Hookbase dashboard's AI Assistant uses it. Each tool has its JSON Schema (`toolInputSchema`), an argument check (`parseToolArgs`), MCP annotations, and `routes`: every API route its handler calls. Run a handler inside `runWithConfig`, optionally with your own `fetch`:
+
+```ts
+import { allTools, runWithConfig } from '@hookbase/mcp-server/catalog';
+
+const tool = allTools.find((t) => t.name === 'hookbase_list_sources')!;
+const result = await runWithConfig(
+  { apiUrl: 'https://api.hookbase.app', apiKey: 'whr_...', orgId: '...', orgSlug: 'acme' },
+  () => tool.handler({}),
+  { fetch: myFetch },
+);
+```
+
 ## Troubleshooting
 
 ### "Missing HOOKBASE_API_KEY"
