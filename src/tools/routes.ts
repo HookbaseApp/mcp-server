@@ -25,6 +25,10 @@ const filterConditionSchema = z.object({
   value: z.string().optional().describe('Value to compare against (not needed for exists/not_exists)'),
 }).strict();
 
+const holdOnCircuitOpenSchema = z.boolean().optional().describe(
+  'While the route\'s circuit breaker is open (Pro and Business plans), hold deliveries (true, the default): they wait without spending attempts and are released when the destination recovers, or dead-lettered as circuit_breaker_open when the plan\'s retry window ends. false: dead-letter them as circuit_breaker_open at once. Routes with failover destinations fail over instead of holding.',
+);
+
 export const routeTools = [
   {
     name: 'hookbase_list_routes',
@@ -49,6 +53,7 @@ export const routeTools = [
           transformId: r.transformId,
           priority: r.priority,
           isActive: r.isActive,
+          holdOnCircuitOpen: r.holdOnCircuitOpen,
           createdAt: r.createdAt,
         })),
       };
@@ -56,7 +61,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_get_route',
-    description: 'Get full detail for a single route, including its filter, transform, and priority. Returns IDs for the source/destination/filter/transform it references — use hookbase_get_source, hookbase_get_destination, etc. to look up their own details.',
+    description: 'Get full detail for a single route, including its filter, transform, priority, and hold setting; heldCount is how many of its deliveries are held while its circuit is open (counted to 10,000; heldCountCapped means more). Returns IDs for the source/destination/filter/transform it references — use hookbase_get_source, hookbase_get_destination, etc. to look up their own details.',
     inputSchema: z.object({
       route_id: z.string().describe('The ID of the route to retrieve'),
     }).strict(),
@@ -82,6 +87,9 @@ export const routeTools = [
           schemaId: r.schemaId,
           priority: r.priority,
           isActive: r.isActive,
+          holdOnCircuitOpen: r.holdOnCircuitOpen,
+          heldCount: r.heldCount,
+          heldCountCapped: r.heldCountCapped,
           createdAt: r.createdAt,
         } : null,
       };
@@ -104,6 +112,7 @@ export const routeTools = [
       transform_id: z.string().optional().describe('ID of a transform to apply to the payload'),
       priority: z.number().optional().describe('Route priority (lower = higher priority, default: 0)'),
       is_active: z.boolean().optional().describe('Whether the route is active (default: true)'),
+      hold_on_circuit_open: holdOnCircuitOpenSchema,
     }).strict(),
     handler: async (args: {
       name: string;
@@ -114,6 +123,7 @@ export const routeTools = [
       transform_id?: string;
       priority?: number;
       is_active?: boolean;
+      hold_on_circuit_open?: boolean;
     }) => {
       const sourceId = await resolveSourceId(args.source_id);
       if ('error' in sourceId) {
@@ -128,6 +138,7 @@ export const routeTools = [
         transformId: args.transform_id,
         priority: args.priority,
         isActive: args.is_active,
+        holdOnCircuitOpen: args.hold_on_circuit_open,
       });
       if (result.error) {
         return { error: result.error };
@@ -146,7 +157,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_update_route',
-    description: 'Update an existing route\'s source, destination, filter, transform, priority, or active state. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently.',
+    description: 'Update an existing route\'s source, destination, filter, transform, priority, active state, or hold setting. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['PATCH /routes/:id'],
     inputSchema: z.object({
@@ -158,6 +169,9 @@ export const routeTools = [
       transform_id: z.string().nullable().optional().describe('Transform ID (set to null to remove)'),
       priority: z.number().optional().describe('Route priority'),
       is_active: z.boolean().optional().describe('Enable or disable the route'),
+      hold_on_circuit_open: holdOnCircuitOpenSchema.describe(
+        'Hold deliveries while the route\'s circuit is open (true) or dead-letter them as circuit_breaker_open (false). Turning it off leaves deliveries already held to the recovery sweep, which releases them; they are dead-lettered on their next attempt if the circuit is still open.',
+      ),
     }).strict(),
     handler: async (args: {
       route_id: string;
@@ -168,6 +182,7 @@ export const routeTools = [
       transform_id?: string | null;
       priority?: number;
       is_active?: boolean;
+      hold_on_circuit_open?: boolean;
     }) => {
       let sourceId: string | undefined;
       if (args.source_id !== undefined) {
@@ -185,6 +200,7 @@ export const routeTools = [
         transformId: args.transform_id,
         priority: args.priority,
         isActive: args.is_active,
+        holdOnCircuitOpen: args.hold_on_circuit_open,
       });
       if (result.error) {
         return { error: result.error };
