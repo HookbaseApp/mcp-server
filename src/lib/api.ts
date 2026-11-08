@@ -303,7 +303,7 @@ export interface Destination {
   throttleQueueLimit?: number | null;
   mockEnabled?: boolean;
   isActive?: boolean;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }> | string;
   successCount?: number;
   failureCount?: number;
@@ -341,7 +341,7 @@ export async function createDestination(data: {
   authConfig?: Record<string, string>;
   timeoutMs?: number;
   throttle?: ThrottleConfig | null;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
   useStaticIp?: boolean;
   batchSize?: number;
@@ -381,7 +381,7 @@ export async function updateDestination(
     timeoutMs?: number;
     throttle?: ThrottleConfig | null;
     isActive?: boolean;
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
     fieldMapping?: Array<{ source: string; target: string; type: string; default?: string }>;
     useStaticIp?: boolean;
     batchSize?: number;

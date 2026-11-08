@@ -140,7 +140,7 @@ export const destinationTools = [
         maxConcurrency?: number | null;
         queueLimit?: number | null;
       };
-      config?: Record<string, any>;
+      config?: Record<string, unknown>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
       use_static_ip?: boolean;
       batch_size?: number;
@@ -222,7 +222,7 @@ export const destinationTools = [
         queueLimit?: number | null;
       };
       is_active?: boolean;
-      config?: Record<string, any>;
+      config?: Record<string, unknown>;
       field_mapping?: Array<{ source: string; target: string; type: string; default?: string }>;
       use_static_ip?: boolean;
       batch_size?: number;
