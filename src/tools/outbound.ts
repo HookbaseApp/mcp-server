@@ -192,6 +192,10 @@ export const applicationTools = [
 // Webhook Endpoints
 // ============================================================================
 
+const holdOnCircuitOpenSchema = z.boolean().optional().describe(
+  'While the endpoint\'s circuit breaker is open, hold messages (true, the default): they wait without spending attempts and are sent when the endpoint recovers, or dead-lettered as circuit_breaker_exhausted when the plan\'s retry window ends. false: dead-letter them as circuit_breaker_open at once. FIFO and polling endpoints never hold.',
+);
+
 export const endpointTools = [
   {
     name: 'hookbase_list_endpoints',
@@ -230,6 +234,7 @@ export const endpointTools = [
           description: ep.description,
           isEnabled: !(ep.isDisabled === 1 || ep.isDisabled === true),
           circuitState: ep.circuitState,
+          holdOnCircuitOpen: ep.holdOnCircuitOpen,
           totalMessages: ep.totalMessages ?? 0,
           totalSuccesses: ep.totalSuccesses ?? 0,
           totalFailures: ep.totalFailures ?? 0,
@@ -243,7 +248,7 @@ export const endpointTools = [
   },
   {
     name: 'hookbase_get_endpoint',
-    description: 'Get detailed information about a webhook endpoint, including circuit breaker state and delivery statistics.',
+    description: 'Get detailed information about a webhook endpoint, including circuit breaker state, hold setting and delivery statistics. heldCount is how many of its messages are held while its circuit is open (counted to 10,000; heldCountCapped means more).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /webhook-endpoints/:id'],
     inputSchema: z.object({
@@ -275,6 +280,9 @@ export const endpointTools = [
           circuitFailureThreshold: ep.circuitFailureThreshold,
           circuitSuccessThreshold: ep.circuitSuccessThreshold,
           circuitCooldownSeconds: ep.circuitCooldownSeconds,
+          holdOnCircuitOpen: ep.holdOnCircuitOpen,
+          heldCount: ep.heldCount,
+          heldCountCapped: ep.heldCountCapped,
           totalMessages: ep.totalMessages ?? 0,
           totalSuccesses: ep.totalSuccesses ?? 0,
           totalFailures: ep.totalFailures ?? 0,
@@ -307,6 +315,7 @@ export const endpointTools = [
       circuit_failure_threshold: z.number().optional().describe('Failures before opening circuit (default 5)'),
       circuit_success_threshold: z.number().optional().describe('Successes to close circuit (default 2)'),
       circuit_cooldown_seconds: z.number().optional().describe('Cooldown before half-open (default 60)'),
+      hold_on_circuit_open: holdOnCircuitOpenSchema,
     }).strict(),
     handler: async (args: {
       application_id: string;
@@ -317,6 +326,7 @@ export const endpointTools = [
       circuit_failure_threshold?: number;
       circuit_success_threshold?: number;
       circuit_cooldown_seconds?: number;
+      hold_on_circuit_open?: boolean;
     }) => {
       const result = await api.createWebhookEndpoint({
         applicationId: args.application_id,
@@ -327,6 +337,7 @@ export const endpointTools = [
         circuitFailureThreshold: args.circuit_failure_threshold,
         circuitSuccessThreshold: args.circuit_success_threshold,
         circuitCooldownSeconds: args.circuit_cooldown_seconds,
+        holdOnCircuitOpen: args.hold_on_circuit_open,
       });
       if (result.error) {
         return { error: result.error };
@@ -361,6 +372,9 @@ export const endpointTools = [
       circuit_failure_threshold: z.number().optional().describe('Failures before opening circuit'),
       circuit_success_threshold: z.number().optional().describe('Successes to close circuit'),
       circuit_cooldown_seconds: z.number().optional().describe('Cooldown before half-open'),
+      hold_on_circuit_open: holdOnCircuitOpenSchema.describe(
+        'Hold messages while the endpoint\'s circuit is open (true) or dead-letter them as circuit_breaker_open (false). Turning it off leaves messages already held to the recovery sweep, which releases them; they are dead-lettered on their next attempt if the circuit is still open.',
+      ),
     }).strict(),
     handler: async (args: {
       endpoint_id: string;
@@ -373,6 +387,7 @@ export const endpointTools = [
       circuit_failure_threshold?: number;
       circuit_success_threshold?: number;
       circuit_cooldown_seconds?: number;
+      hold_on_circuit_open?: boolean;
     }) => {
       const result = await api.updateWebhookEndpoint(args.endpoint_id, {
         url: args.url,
@@ -384,6 +399,7 @@ export const endpointTools = [
         circuitFailureThreshold: args.circuit_failure_threshold,
         circuitSuccessThreshold: args.circuit_success_threshold,
         circuitCooldownSeconds: args.circuit_cooldown_seconds,
+        holdOnCircuitOpen: args.hold_on_circuit_open,
       });
       if (result.error) {
         return { error: result.error };

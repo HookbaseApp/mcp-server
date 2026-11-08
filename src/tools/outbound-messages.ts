@@ -9,7 +9,7 @@ import * as api from '../lib/api.js';
 export const outboundMessageTools = [
   {
     name: 'hookbase_send_event',
-    description: 'Send a webhook event to all subscribed endpoints. The event is queued for delivery, not sent synchronously — calls with the same idempotency_key return the original event instead of creating a duplicate. Use labels for filtering which subscriptions receive the event.',
+    description: 'Send a webhook event to all subscribed endpoints. The event is queued for delivery, not sent synchronously — calls with the same idempotency_key return the original event instead of creating a duplicate. Use labels for filtering which subscriptions receive the event. messagesHeld (present only when above 0) counts the queued messages held because their endpoint\'s circuit is open; they are sent when it recovers.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     routes: ['POST /send-event'],
     inputSchema: z.object({
@@ -46,17 +46,19 @@ export const outboundMessageTools = [
         message: 'Event sent successfully',
         eventId: result.data?.data.eventId,
         messagesQueued: result.data?.data.messagesQueued,
+        // The API sends it only when > 0; undefined leaves it out of the result.
+        messagesHeld: result.data?.data.messagesHeld,
         endpoints: result.data?.data.endpoints,
       };
     },
   },
   {
     name: 'hookbase_list_outbound_messages',
-    description: 'List outbound message delivery records. Messages track the delivery status of each event to each endpoint.',
+    description: 'List outbound message delivery records. Messages track the delivery status of each event to each endpoint. Filter by status to find messages needing attention: "dlq" or "exhausted" (out of attempts; replayable), "failed" (still being retried), or "held" (waiting while the endpoint\'s circuit is open; holdExpiresAt is when the hold ends).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /outbound-messages'],
     inputSchema: z.object({
-      status: z.enum(['pending', 'processing', 'success', 'failed', 'exhausted']).optional().describe('Filter by delivery status'),
+      status: z.enum(api.OUTBOUND_MESSAGE_STATUSES).optional().describe('Filter by delivery status. awaiting_pull: waiting on a polling endpoint; fifo_waiting: queued behind an earlier message on a FIFO endpoint.'),
       event_type: z.string().optional().describe('Filter by event type name'),
       application_id: z.string().optional().describe('Filter by application ID'),
       endpoint_id: z.string().optional().describe('Filter by endpoint ID'),
@@ -64,7 +66,7 @@ export const outboundMessageTools = [
       cursor: z.string().optional().describe('Pagination cursor for next page'),
     }).strict(),
     handler: async (args: {
-      status?: 'pending' | 'processing' | 'success' | 'failed' | 'exhausted';
+      status?: api.OutboundMessageStatus;
       event_type?: string;
       application_id?: string;
       endpoint_id?: string;
@@ -96,6 +98,7 @@ export const outboundMessageTools = [
           maxAttempts: msg.maxAttempts,
           lastResponseStatus: msg.lastResponseStatus,
           lastErrorMessage: msg.lastErrorMessage,
+          holdExpiresAt: msg.holdExpiresAt,
           createdAt: msg.createdAt,
           completedAt: msg.completedAt,
         })) ?? [],

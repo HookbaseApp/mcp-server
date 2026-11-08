@@ -8,7 +8,7 @@ import * as api from '../lib/api.js';
 export const deliveryTools = [
   {
     name: 'hookbase_list_deliveries',
-    description: 'Query webhook deliveries with optional filters. A delivery is one attempt (including retries) to forward an already-received event to a destination through a route — use hookbase_list_events instead to inspect inbound webhooks themselves. Results are sorted newest first. Use event_id or destination_id to scope to one event\'s fan-out or one destination\'s history, or status to find deliveries needing attention (e.g. "failed" or "retrying"). Follow up on a specific row with hookbase_get_delivery for the full response body, or hookbase_replay_delivery / hookbase_bulk_replay to retry failures.',
+    description: 'Query webhook deliveries with optional filters. A delivery is one attempt (including retries) to forward an already-received event to a destination through a route — use hookbase_list_events instead to inspect inbound webhooks themselves. Results are sorted newest first. Use event_id or destination_id to scope to one event\'s fan-out or one destination\'s history, or status to find deliveries needing attention (e.g. "failed", or "held" for deliveries waiting while their route\'s circuit is open; status="pending" also returns awaiting_retry and held rows). Follow up on a specific row with hookbase_get_delivery for the full response body, or hookbase_replay_delivery / hookbase_bulk_replay to retry failures.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /deliveries'],
     inputSchema: z.object({
@@ -16,7 +16,7 @@ export const deliveryTools = [
       offset: z.number().optional().describe('Number of deliveries to skip for pagination'),
       event_id: z.string().optional().describe('Filter by event ID'),
       destination_id: z.string().optional().describe('Filter by destination ID'),
-      status: z.enum(['pending', 'success', 'failed', 'retrying']).optional().describe('Filter by delivery status'),
+      status: z.enum(api.DELIVERY_STATUSES).optional().describe('Filter by delivery status. "pending" also matches awaiting_retry (waiting for a scheduled retry) and held (waiting while the route\'s circuit is open).'),
     }).strict(),
     handler: async (args: {
       limit?: number;
@@ -49,6 +49,7 @@ export const deliveryTools = [
           responseTimeMs: d.latencyMs,
           errorMessage: d.errorMessage,
           nextRetryAt: d.nextRetryAt,
+          holdExpiresAt: d.holdExpiresAt,
           completedAt: d.deliveredAt,
           createdAt: d.createdAt,
         })),
@@ -84,6 +85,7 @@ export const deliveryTools = [
           responseBody: d.responseBody,
           errorMessage: d.errorMessage,
           nextRetryAt: d.nextRetryAt,
+          holdExpiresAt: d.holdExpiresAt,
           completedAt: d.deliveredAt,
           createdAt: d.createdAt,
         } : null,

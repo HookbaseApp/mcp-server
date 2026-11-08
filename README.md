@@ -137,10 +137,10 @@ Every `source_id` accepts the source's ID or its slug.
 - `hookbase_test_destination` - Test destination connectivity
 
 #### Routes
-- `hookbase_list_routes` - List all routes
-- `hookbase_get_route` - Get route details
-- `hookbase_create_route` - Create source→destination route
-- `hookbase_update_route` - Update route config
+- `hookbase_list_routes` - List all routes, with each route's hold setting (`holdOnCircuitOpen`)
+- `hookbase_get_route` - Get route details, including `heldCount` (deliveries held while its circuit is open, counted to 10,000; `heldCountCapped` means more)
+- `hookbase_create_route` - Create source→destination route; `hold_on_circuit_open: false` dead-letters deliveries while the circuit is open instead of holding them (default `true`)
+- `hookbase_update_route` - Update route config, including `hold_on_circuit_open`
 - `hookbase_delete_route` - Delete a route (only its own delivery history; source/destination/filter/transform are untouched)
 
 #### Events
@@ -150,8 +150,8 @@ Every `source_id` accepts the source's ID or its slug.
 - `hookbase_get_event_debug` - Get cURL command to replay event
 
 #### Deliveries
-- `hookbase_list_deliveries` - Query deliveries
-- `hookbase_get_delivery` - Get delivery details with response
+- `hookbase_list_deliveries` - Query deliveries. `status` is one of `pending`, `delivered`, `failed`, `failed_over`, `schema_failed`, `throttled`, `awaiting_retry` or `held`; `pending` also returns `awaiting_retry` and `held` rows. Held rows carry `holdExpiresAt`
+- `hookbase_get_delivery` - Get delivery details with response (and `holdExpiresAt` while held)
 - `hookbase_replay_delivery` - Retry a failed delivery
 - `hookbase_bulk_replay` - Retry multiple failed deliveries (up to 100 IDs)
 - `hookbase_replay_with_edit` - Replay one delivery with one-shot payload/destination/transform/header overrides
@@ -249,10 +249,10 @@ Applications represent a customer or integration that receives your outbound web
 
 #### Webhook Endpoints
 Endpoints are the URLs where webhooks are delivered.
-- `hookbase_list_endpoints` - List endpoints with filters
-- `hookbase_get_endpoint` - Get endpoint details with circuit breaker state
-- `hookbase_create_endpoint` - Create endpoint (returns signing secret)
-- `hookbase_update_endpoint` - Update endpoint URL or config
+- `hookbase_list_endpoints` - List endpoints with filters, with each endpoint's hold setting (`holdOnCircuitOpen`)
+- `hookbase_get_endpoint` - Get endpoint details with circuit breaker state and `heldCount` (messages held while its circuit is open, counted to 10,000; `heldCountCapped` means more)
+- `hookbase_create_endpoint` - Create endpoint (returns signing secret); `hold_on_circuit_open: false` dead-letters messages while the circuit is open instead of holding them (default `true`)
+- `hookbase_update_endpoint` - Update endpoint URL or config, including `hold_on_circuit_open`
 - `hookbase_delete_endpoint` - Delete endpoint
 - `hookbase_rotate_endpoint_secret` - Rotate signing secret with grace period
 - `hookbase_reset_endpoint_circuit` - Reset circuit breaker to closed state
@@ -279,8 +279,8 @@ Read-only, unauthenticated docs surface for an org's published (`is_public`) eve
 - `hookbase_get_public_catalog_event_type` - Get schema + example payload for one published event type
 
 #### Send Events & Track Messages
-- `hookbase_send_event` - Send webhook event to subscribed endpoints
-- `hookbase_list_outbound_messages` - List delivery records
+- `hookbase_send_event` - Send webhook event to subscribed endpoints (`messagesHeld` counts messages held because their endpoint's circuit is open, when there are any)
+- `hookbase_list_outbound_messages` - List delivery records. `status` is one of `pending`, `processing`, `success`, `awaiting_retry`, `held`, `awaiting_pull`, `fifo_waiting`, `failed`, `exhausted` or `dlq`. Held messages carry `holdExpiresAt`
 - `hookbase_get_outbound_message` - Get message details
 - `hookbase_get_message_attempts` - Get delivery attempt history
 - `hookbase_replay_message` - Replay failed message
@@ -376,6 +376,7 @@ Once configured, you can ask Claude things like:
 - "Reset the circuit breaker for endpoint X"
 - "Rotate the signing secret for Acme's endpoint with a 2-hour grace period"
 - "List all endpoints that have their circuit breaker open"
+- "How many messages are held for Acme's endpoint, and when do their holds end?"
 - "Get delivery statistics for outbound webhooks"
 
 ## Debugging with the MCP Inspector

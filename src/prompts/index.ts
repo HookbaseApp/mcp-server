@@ -132,17 +132,18 @@ Direction: ${args.direction || 'both inbound and outbound'}
    - Timeout → Increase destination timeout or optimize endpoint
 4. Use hookbase_replay_delivery to retry after fixing
 5. Use hookbase_bulk_replay to retry multiple failures
+6. status='held' lists deliveries waiting while a route's circuit is open: they are released when the destination recovers, or dead-lettered at holdExpiresAt. hookbase_get_route shows heldCount
 
 ## For Outbound Webhooks (sending):
-1. Use hookbase_list_outbound_messages with status='failed' or status='exhausted'
+1. Use hookbase_list_outbound_messages with status='dlq' or status='exhausted' (out of attempts), or status='failed' (still being retried)
 2. Use hookbase_get_outbound_message to see error details
 3. Use hookbase_get_message_attempts to see all delivery attempts
 4. Check circuit breaker: hookbase_get_endpoint to see circuitState
 5. Common issues:
-   - Circuit breaker open → Use hookbase_reset_endpoint_circuit after fixing
+   - Circuit breaker open → Use hookbase_reset_endpoint_circuit after fixing. Messages with status='held' wait for recovery (hookbase_get_endpoint shows heldCount) and are sent once the circuit closes
    - Endpoint disabled → Use hookbase_update_endpoint to re-enable
    - URL changed → Update endpoint URL
-6. Use hookbase_replay_message to retry failed messages
+6. Use hookbase_replay_message to retry exhausted or DLQ messages
 
 ## Get Statistics:
 - Inbound: hookbase_get_analytics

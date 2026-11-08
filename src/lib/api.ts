@@ -428,6 +428,11 @@ export interface Route {
   schemaId?: string;
   priority: number;
   isActive: boolean;
+  /** While the circuit is open, hold deliveries (true, the default) or dead-letter them. List and GET. */
+  holdOnCircuitOpen?: boolean;
+  /** Held deliveries on this route, counted to 10,000 (heldCountCapped: more). GET /routes/:id only. */
+  heldCount?: number;
+  heldCountCapped?: boolean;
   createdAt?: string;
 }
 
@@ -455,6 +460,7 @@ export async function createRoute(data: {
   schemaId?: string;
   priority?: number;
   isActive?: boolean;
+  holdOnCircuitOpen?: boolean;
 }): Promise<ApiResponse<{ route: Route }>> {
   return request<{ route: Route }>('POST', orgPath('/routes'), {
     name: data.name,
@@ -466,6 +472,8 @@ export async function createRoute(data: {
     schemaId: data.schemaId,
     priority: data.priority ?? 0,
     isActive: data.isActive ?? true,
+    // Left out when undefined (JSON.stringify drops it); the API rejects null.
+    holdOnCircuitOpen: data.holdOnCircuitOpen,
   });
 }
 
@@ -479,6 +487,7 @@ export async function updateRoute(
     transformId?: string | null;
     priority?: number;
     isActive?: boolean;
+    holdOnCircuitOpen?: boolean;
   }
 ): Promise<ApiResponse<{ route: Route }>> {
   return request<{ route: Route }>('PATCH', orgPath(`/routes/${routeId}`), data);
@@ -546,6 +555,15 @@ export async function getEvent(eventId: string): Promise<ApiResponse<{ event: Ev
 
 // Live API returns camelCase. Note two value-name differences: latencyMs (not responseTimeMs) and
 // deliveredAt (not completedAt). routeName is NOT returned by the list or detail endpoints.
+
+/**
+ * Every status an inbound delivery can be in (the deliveries_status_check constraint). GET
+ * /deliveries?status= matches one exactly, except that "pending" also returns awaiting_retry and held.
+ */
+export const DELIVERY_STATUSES = [
+  'pending', 'delivered', 'failed', 'failed_over', 'schema_failed', 'throttled', 'awaiting_retry', 'held',
+] as const;
+
 export interface Delivery {
   id: string;
   eventId: string;
@@ -559,7 +577,10 @@ export interface Delivery {
   latencyMs?: number;
   responseBody?: string;
   errorMessage?: string;
-  nextRetryAt?: string;
+  /** Null while held: a held row's deadline is holdExpiresAt instead. */
+  nextRetryAt?: string | null;
+  /** When a held delivery is dead-lettered if its route's circuit is still open; null otherwise. */
+  holdExpiresAt?: string | null;
   deliveredAt?: string;
   createdAt: string;
 }
@@ -1347,6 +1368,11 @@ export interface WebhookEndpoint {
   circuitFailureThreshold?: number;
   circuitSuccessThreshold?: number;
   circuitCooldownSeconds?: number;
+  /** While the circuit is open, hold messages (true, the default) or dead-letter them. List and GET. */
+  holdOnCircuitOpen?: boolean;
+  /** Held messages on this endpoint, counted to 10,000 (heldCountCapped: more). GET /webhook-endpoints/:id only. */
+  heldCount?: number;
+  heldCountCapped?: boolean;
   totalMessages?: number;
   totalSuccesses?: number;
   totalFailures?: number;
@@ -1403,6 +1429,7 @@ export async function createWebhookEndpoint(data: {
   circuitFailureThreshold?: number;
   circuitSuccessThreshold?: number;
   circuitCooldownSeconds?: number;
+  holdOnCircuitOpen?: boolean;
 }): Promise<ApiResponse<{ data: WebhookEndpoint; warning: string }>> {
   return request<{ data: WebhookEndpoint; warning: string }>('POST', orgPath('/webhook-endpoints'), data);
 }
@@ -1419,6 +1446,7 @@ export async function updateWebhookEndpoint(
     circuitFailureThreshold?: number;
     circuitSuccessThreshold?: number;
     circuitCooldownSeconds?: number;
+    holdOnCircuitOpen?: boolean;
   }
 ): Promise<ApiResponse<{ data: WebhookEndpoint }>> {
   return request<{ data: WebhookEndpoint }>('PATCH', orgPath(`/webhook-endpoints/${endpointId}`), data);
@@ -1642,6 +1670,8 @@ export interface SendEventResult {
   eventId: string;
   messagesQueued: number;
   endpoints: Array<{ id: string; url: string }>;
+  /** Of messagesQueued, those held because their endpoint's circuit is open. Absent when none were. */
+  messagesHeld?: number;
 }
 
 export async function sendOutboundEvent(data: {
@@ -1660,17 +1690,26 @@ export async function sendOutboundEvent(data: {
 // Outbound Messages
 // ============================================================================
 
+/** Every status an outbound message can be in; GET /outbound-messages?status= matches one exactly. */
+export const OUTBOUND_MESSAGE_STATUSES = [
+  'pending', 'processing', 'success', 'awaiting_retry', 'held', 'awaiting_pull', 'fifo_waiting',
+  'failed', 'exhausted', 'dlq',
+] as const;
+export type OutboundMessageStatus = typeof OUTBOUND_MESSAGE_STATUSES[number];
+
 export interface OutboundMessage {
   id: string;
   eventId: string;
   eventType: string;
   applicationId: string;
   endpointId: string;
-  status: 'pending' | 'processing' | 'success' | 'failed' | 'exhausted';
+  status: OutboundMessageStatus;
   attempts: number;
   maxAttempts: number;
   lastResponseStatus?: number | null;
   lastErrorMessage?: string | null;
+  /** When a held message's hold ends; null for any other status. */
+  holdExpiresAt?: string | null;
   createdAt: string;
   completedAt?: string | null;
   endpointUrl?: string;
@@ -1703,12 +1742,15 @@ export interface OutboundStats {
   processing: number;
   success: number;
   failed: number;
+  awaitingRetry: number;
+  held: number;
   exhausted: number;
+  dlq: number;
   total: number;
 }
 
 export async function getOutboundMessages(options?: {
-  status?: 'pending' | 'processing' | 'success' | 'failed' | 'exhausted';
+  status?: OutboundMessageStatus;
   eventType?: string;
   applicationId?: string;
   endpointId?: string;
