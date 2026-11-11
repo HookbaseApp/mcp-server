@@ -139,7 +139,9 @@ export const deliveryTools = [
       'Replay a failed delivery with one-shot overrides. Use this to recover from a broken transform, ' +
       'a wrong destination URL, or a missing header without permanently changing the route. Set persist_transform=true ' +
       'to save the new transform code to the route after a successful replay. Always replay one delivery first as a probe ' +
-      'before bulk replays — the response includes the new delivery ID so you can poll its status.',
+      'before bulk replays — the response includes the new delivery ID so you can poll its status. ' +
+      'Redirecting into a bridge destination, or editing the payload or transform of a replay that reaches one, ' +
+      'needs the events:send permission, since a bridge publishes outbound events.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     routes: ['POST /deliveries/:id/replay'],
     inputSchema: z.object({
@@ -245,12 +247,16 @@ export const deliveryTools = [
       'Replay every failed delivery matching a cluster fingerprint with one round trip. ' +
       'Same override shape as hookbase_replay_with_edit. Use this after diagnosing a cluster with hookbase_list_delivery_clusters ' +
       'and probing the fix on a single delivery with hookbase_replay_with_edit. ' +
-      'persist_transform requires every delivery in the cluster to share a single route.',
+      'persist_transform requires every delivery in the cluster to share a single route. ' +
+      'A destination_override into a bridge destination, or a transform_override when any delivery in the cluster ' +
+      'goes to a bridge, needs the events:send permission.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     routes: ['POST /delivery-clusters/:id/replay-all'],
     inputSchema: z.object({
       fingerprint: z.string().describe('The cluster fingerprint hash returned by hookbase_list_delivery_clusters'),
-      destination_override: z.string().optional(),
+      destination_override: z.string().optional().describe(
+        'Destination id or slug to send the replays to instead of each route\'s normal destination. Must belong to the same organization.',
+      ),
       transform_override: z.object({
         code: z.string(),
         type: z.enum(['jsonata', 'javascript']).optional(),

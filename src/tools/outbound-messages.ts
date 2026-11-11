@@ -108,7 +108,7 @@ export const outboundMessageTools = [
   },
   {
     name: 'hookbase_get_outbound_message',
-    description: 'Get detailed information about an outbound message delivery.',
+    description: 'Get detailed information about an outbound message delivery. When a bridge destination published the message\'s event, bridge holds {inboundEventId, deliveryId, hop}: the inbound event and delivery it came from, and how many bridges it has crossed; otherwise bridge is null.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /outbound-messages/:id'],
     inputSchema: z.object({

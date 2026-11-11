@@ -131,10 +131,10 @@ Every `source_id` accepts the source's ID or its slug.
 #### Destinations
 - `hookbase_list_destinations` - List all destinations
 - `hookbase_get_destination` - Get destination details
-- `hookbase_create_destination` - Create new destination
+- `hookbase_create_destination` - Create new destination: HTTP, queue (SQS, EventBridge, Service Bus, Pub/Sub, OCI Queue), storage (S3, R2, GCS, Azure Blob), or a bridge that publishes outbound events
 - `hookbase_update_destination` - Update destination config
 - `hookbase_delete_destination` - Delete a destination (cascades to its routes and their deliveries, including pending/queued ones)
-- `hookbase_test_destination` - Test destination connectivity
+- `hookbase_test_destination` - Test destination connectivity (a dry run for bridges, with an optional sample payload)
 
 #### Routes
 - `hookbase_list_routes` - List all routes, with each route's hold setting (`holdOnCircuitOpen`)
