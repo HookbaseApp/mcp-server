@@ -285,11 +285,16 @@ export async function getProvider(providerId: string): Promise<ApiResponse<{ pro
 // nests them. POST/PATCH request bodies, by contrast, take a nested `throttle: {...}` object (see
 // ThrottleConfig below and createDestinationSchema in the API). Replaced the old flat
 // `rateLimitPerMinute` field, which the API no longer has.
+export type DestinationType =
+  | 'http' | 'sqs' | 'eventbridge' | 'servicebus' | 'pubsub' | 'oci_queue'
+  | 's3' | 'r2' | 'gcs' | 'azure_blob' | 'bridge';
+
 export interface Destination {
   id: string;
   name: string;
   slug: string;
-  type?: 'http' | 's3' | 'r2' | 'gcs' | 'azure_blob';
+  type?: DestinationType;
+  // "" for every type but http.
   url: string;
   method: string;
   headers?: Record<string, string>;
@@ -333,7 +338,7 @@ export async function getDestination(destId: string): Promise<ApiResponse<{ dest
 export async function createDestination(data: {
   name: string;
   slug?: string;
-  type?: 'http' | 's3' | 'r2' | 'gcs' | 'azure_blob';
+  type?: DestinationType;
   url?: string;
   method?: string;
   headers?: Record<string, string>;
@@ -395,16 +400,28 @@ export async function deleteDestination(destId: string): Promise<ApiResponse<{ s
   return request<{ success: boolean }>('DELETE', orgPath(`/destinations/${destId}`));
 }
 
-export async function testDestination(destId: string): Promise<ApiResponse<{
+// An http destination's test sends a request (status, latencyMs, responseBody); a bridge's is a dry
+// run (dryRun, eventType, eventTypeExists, matchingEndpoints) that takes an optional sample payload.
+export interface DestinationTestResult {
   success: boolean;
-  status: number;
-  latencyMs: number;
+  status?: number;
+  latencyMs?: number;
   responseBody?: string;
   error?: string;
-}>> {
-  return request<{ success: boolean; status: number; latencyMs: number; responseBody?: string; error?: string }>(
+  dryRun?: boolean;
+  eventType?: string | null;
+  eventTypeExists?: boolean;
+  matchingEndpoints?: number;
+}
+
+export async function testDestination(
+  destId: string,
+  payload?: Record<string, unknown>,
+): Promise<ApiResponse<DestinationTestResult>> {
+  return request<DestinationTestResult>(
     'POST',
-    orgPath(`/destinations/${destId}/test`)
+    orgPath(`/destinations/${destId}/test`),
+    payload === undefined ? undefined : { payload },
   );
 }
 
@@ -1715,6 +1732,8 @@ export interface OutboundMessage {
   endpointUrl?: string;
   endpointDescription?: string;
   applicationName?: string;
+  /** Single-message GET only: the inbound delivery a bridge destination published this from, else null. */
+  bridge?: { inboundEventId: string; deliveryId: string | null; hop: number | null } | null;
 }
 
 export interface OutboundAttempt {
