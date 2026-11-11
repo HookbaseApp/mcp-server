@@ -157,7 +157,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_update_route',
-    description: 'Update an existing route\'s source, destination, filter, transform, priority, active state, or hold setting. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently. Changing the source, destination, failovers or transform of a route that feeds a bridge destination needs the events:send permission.',
+    description: 'Update an existing route\'s source, destination, filter, transform, priority, active state, or hold setting. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently. Changing the source, destination, failovers or transform needs the events:send permission when the route delivers to a bridge destination after the change (moving a route off a bridge does not).',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['PATCH /routes/:id'],
     inputSchema: z.object({

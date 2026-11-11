@@ -4,6 +4,7 @@
 
 import { z, boundedRecord, MAX_COLLECTION } from '../lib/zod.js';
 import * as api from '../lib/api.js';
+import { DESTINATION_TYPES, type DestinationType } from '../lib/api.js';
 
 // Mirrors the API's throttle sub-schema (createDestinationSchema in api/src/routes/destinations.ts):
 // rateLimit+rateUnit are required when mode is 'rate', maxConcurrency is required when mode is
@@ -25,11 +26,6 @@ const throttleInputSchema = z.object({
   .optional()
   .describe('Throttle configuration for outbound delivery rate limiting (requires a paid plan for modes other than "off").');
 
-const DESTINATION_TYPES = [
-  'http', 'sqs', 'eventbridge', 'servicebus', 'pubsub', 'oci_queue', 's3', 'r2', 'gcs', 'azure_blob', 'bridge',
-] as const;
-type DestinationType = typeof DESTINATION_TYPES[number];
-
 const CONFIG_DESCRIPTION = 'Configuration object for non-http types; its shape depends on type. '
   + 'Queues: sqs {queueUrl, region, accessKeyId, secretAccessKey, messageGroupId?}; '
   + 'eventbridge {eventBusName, region, accessKeyId, secretAccessKey, source?, detailType?}; '
@@ -40,9 +36,9 @@ const CONFIG_DESCRIPTION = 'Configuration object for non-http types; its shape d
   + 'r2 {bucket, endpoint, accessKeyId, secretAccessKey, prefix?, fileFormat?, partitionBy?}; '
   + 'gcs {bucket, projectId, serviceAccountKey, prefix?, fileFormat?, partitionBy?, compressionType?}; '
   + 'azure_blob {accountName, accountKey, containerName, prefix?, fileFormat?, partitionBy?}. '
-  + 'Bridge (no other keys allowed): {eventTypeSource: "fixed" | "field", eventType? (required when fixed: an existing, '
-  + 'enabled outbound event type), eventTypeField? (required when field: a dot path into the payload, at most 5 '
-  + 'segments, e.g. "data.type"), eventTypePrefix? (field mode only, e.g. "stripe."), applicationId? (only that '
+  + 'Bridge (no other keys allowed): {eventTypeSource: "fixed" | "field", eventType? (fixed mode only, and required '
+  + 'there: an existing, enabled outbound event type), eventTypeField? (field mode only, and required there: a dot path '
+  + 'into the payload, at most 5 segments, e.g. "data.type"), eventTypePrefix? (field mode only, e.g. "stripe."), applicationId? (only that '
   + 'application\'s endpoints; default all), allowUnverifiedSources? (default false: events whose sender the source '
   + 'did not verify are refused with 403; true lets anyone who can reach the source publish to your endpoints)}.';
 
@@ -203,7 +199,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_update_destination',
-    description: 'Update an existing destination\'s configuration — connection details, auth, throttle limits, or type-specific config. A destination\'s type cannot be changed. Only the fields you provide are changed; omitted fields keep their current value, except config, which replaces the stored config whole. Any change to a bridge destination needs the events:send permission. Changes take effect on the next delivery attempt through this destination, including deliveries already queued or retrying. Set is_active=false to pause all deliveries through this destination without deleting it or the routes pointing at it.',
+    description: 'Update an existing destination\'s configuration — connection details, auth, throttle limits, or type-specific config. A destination\'s type cannot be changed. Only the fields you provide are changed; omitted fields keep their current value, except config, which replaces the stored config whole (to keep a queue or storage secret, send back the masked "••••" value get_destination returned and the stored one is kept). Any change to a bridge destination needs the events:send permission. Changes take effect on the next delivery attempt through this destination, including deliveries already queued or retrying. Set is_active=false to pause all deliveries through this destination without deleting it or the routes pointing at it.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['PATCH /destinations/:id'],
     inputSchema: z.object({
@@ -291,7 +287,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_test_destination',
-    description: 'Test a destination. For an http destination this sends a real test request to its configured URL (not a dry run) and returns the response status and timing. For a bridge it is a dry run that sends nothing: it resolves the event type from the payload (or the bridge\'s fixed type), checks that the type exists and is enabled, and counts the endpoints subscribed to it (dryRun, eventType, eventTypeExists, matchingEndpoints); it does not check the sender, schema or quota. A storage destination\'s test uploads a test file; queue destinations cannot be tested here. Use it after hookbase_create_destination or hookbase_update_destination, before pointing a route at the destination.',
+    description: 'Test a destination. For an http destination this sends a real test request to its configured URL (not a dry run) and returns the response status and timing. For a bridge it is a dry run that sends nothing: it resolves the event type from the payload (or the bridge\'s fixed type), checks that the type exists and is enabled, and counts the endpoints subscribed to it (dryRun, eventType, eventTypeExists, matchingEndpoints); it does not check the sender, schema or quota. In a dry run success only means the event type resolved and exists: matchingEndpoints counts subscriptions before label filters, filter expressions and circuit state, so it is an upper bound, and 0 means a publish would reach nobody. A storage destination\'s test uploads a test file; queue destinations cannot be tested here. Use it after hookbase_create_destination or hookbase_update_destination, before pointing a route at the destination.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     routes: ['POST /destinations/:id/test'],
     inputSchema: z.object({

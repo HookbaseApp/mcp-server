@@ -285,9 +285,10 @@ export async function getProvider(providerId: string): Promise<ApiResponse<{ pro
 // nests them. POST/PATCH request bodies, by contrast, take a nested `throttle: {...}` object (see
 // ThrottleConfig below and createDestinationSchema in the API). Replaced the old flat
 // `rateLimitPerMinute` field, which the API no longer has.
-export type DestinationType =
-  | 'http' | 'sqs' | 'eventbridge' | 'servicebus' | 'pubsub' | 'oci_queue'
-  | 's3' | 'r2' | 'gcs' | 'azure_blob' | 'bridge';
+export const DESTINATION_TYPES = [
+  'http', 'sqs', 'eventbridge', 'servicebus', 'pubsub', 'oci_queue', 's3', 'r2', 'gcs', 'azure_blob', 'bridge',
+] as const;
+export type DestinationType = typeof DESTINATION_TYPES[number];
 
 export interface Destination {
   id: string;

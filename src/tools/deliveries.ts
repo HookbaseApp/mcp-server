@@ -248,7 +248,8 @@ export const deliveryTools = [
       'Same override shape as hookbase_replay_with_edit. Use this after diagnosing a cluster with hookbase_list_delivery_clusters ' +
       'and probing the fix on a single delivery with hookbase_replay_with_edit. ' +
       'persist_transform requires every delivery in the cluster to share a single route. ' +
-      'An override that reaches a bridge destination needs the events:send permission.',
+      'A destination_override into a bridge destination, or a transform_override when any delivery in the cluster ' +
+      'goes to a bridge, needs the events:send permission.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     routes: ['POST /delivery-clusters/:id/replay-all'],
     inputSchema: z.object({

@@ -108,7 +108,7 @@ describe('bridge destinations', () => {
     const payload = { data: { type: 'invoice.paid' } };
     const result = await tool('hookbase_test_destination').handler({ destination_id: 'dst_1', payload } as never);
     expect(calls()[0].body).toEqual({ payload });
-    expect(result).toEqual({ ...dryRun, error: undefined });
+    expect(result).toStrictEqual({ ...dryRun, error: undefined });
   });
 
   it('test_destination sends no body without a payload, and maps an http test as before', async () => {
@@ -117,7 +117,38 @@ describe('bridge destinations', () => {
     ]);
     const result = await tool('hookbase_test_destination').handler({ destination_id: 'dst_1' } as never);
     expect(calls()[0].body).toBeUndefined();
-    expect(result).toEqual({ success: true, statusCode: 204, responseTime: 41, responseBody: '', error: undefined });
+    expect(result).toStrictEqual({ success: true, statusCode: 204, responseTime: 41, responseBody: '', error: undefined });
+  });
+
+  it("test_destination returns a bridge's invalid-config dry run with a null event type", async () => {
+    const { tool } = await setup([
+      { match: '/destinations/dst_1/test', method: 'POST', response: () => json({ success: false, dryRun: true, error: 'Bridge destination config is invalid' }) },
+    ]);
+    const result = await tool('hookbase_test_destination').handler({ destination_id: 'dst_1' } as never);
+    expect(result).toStrictEqual({
+      success: false, dryRun: true, eventType: null, eventTypeExists: undefined, matchingEndpoints: undefined,
+      error: 'Bridge destination config is invalid',
+    });
+  });
+
+  it("test_destination passes a queue destination's refusal through", async () => {
+    const error = "Testing sqs destinations isn't supported yet. Send a real event through a route to check the queue.";
+    const { tool } = await setup([
+      { match: '/destinations/dst_q/test', method: 'POST', response: () => json({ success: false, error }) },
+    ]);
+    const result = await tool('hookbase_test_destination').handler({ destination_id: 'dst_q' } as never);
+    expect(result).toStrictEqual({ success: false, statusCode: undefined, responseTime: undefined, responseBody: undefined, error });
+  });
+
+  it('creates a queue destination with its config and no URL', async () => {
+    const config = { queueUrl: 'https://sqs.us-east-1.amazonaws.com/1/q', region: 'us-east-1', accessKeyId: 'AKIA', secretAccessKey: 's' };
+    const { tool, calls } = await setup([
+      { match: '/destinations', method: 'POST', response: () => json({ destination: { id: 'dst_q', type: 'sqs', url: '' } }, 201) },
+    ]);
+    await tool('hookbase_create_destination').handler({ name: 'Queue', type: 'sqs', config } as never);
+    const [call] = calls();
+    expect(call.body).toMatchObject({ type: 'sqs', config });
+    expect(call.body?.url).toBeUndefined();
   });
 
   it('test_destination returns a dry run that could not resolve the event type', async () => {
