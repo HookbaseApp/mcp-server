@@ -2,7 +2,7 @@
  * Source tools for MCP server
  */
 
-import { z, MAX_COLLECTION } from '../lib/zod.js';
+import { z, MAX_COLLECTION, pageInputs, PAGED_LIST_NOTE } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 // Mirrors VALID_INGEST_METHODS in api/src/routes/sources.ts. OPTIONS is excluded there because
@@ -43,15 +43,26 @@ const SIGNING_SECRET_DESC =
 
 const SOURCE_ID_DESC = 'The source ID or slug';
 
+// Vendors whose catalog entry has hookbaseProvider "custom": Hookbase has no verifier for them, and
+// they send every customer's webhooks from the same addresses, so a bridge destination must not take
+// the source's IP allowlist as proof of the sender. The API learns the vendor from catalogProvider.
+const CATALOG_PROVIDER_DESC =
+  'Provider-catalog entry id this source is for: the id hookbase_list_providers / hookbase_get_provider ' +
+  'return (e.g. "salesforce"), which can differ from provider. Pass it whenever the entry\'s ' +
+  'hookbaseProvider is "custom" (Hookbase has no verifier for that vendor: Salesforce, Plaid, Microsoft ' +
+  'Teams, Mollie, Docker Hub, DigitalOcean). Those vendors send every customer\'s webhooks from the same ' +
+  'addresses, so with it set a bridge destination does not count the source\'s IP allowlist as proof of ' +
+  'the sender. Create-only: it cannot be changed later. An unknown id is rejected with a 400.';
+
 export const sourceTools = [
   {
     name: 'hookbase_list_sources',
-    description: 'List all webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount and routeCount; use hookbase_get_source for one source\'s full configuration.',
+    description: 'List webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount and routeCount; use hookbase_get_source for one source\'s full configuration. ' + PAGED_LIST_NOTE,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /sources'],
-    inputSchema: z.object({}).strict(),
-    handler: async () => {
-      const result = await api.getSources();
+    inputSchema: z.object({ ...pageInputs }).strict(),
+    handler: async (args: { page?: number; page_size?: number }) => {
+      const result = await api.getSources({ page: args.page, pageSize: args.page_size });
       if (result.error) {
         return { error: result.error };
       }
@@ -68,12 +79,13 @@ export const sourceTools = [
           routeCount: s.routeCount ?? 0,
           createdAt: s.createdAt,
         })),
+        pagination: result.data?.pagination,
       };
     },
   },
   {
     name: 'hookbase_get_source',
-    description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_reveal_source_secret to read the full value. awaitingSigningSecret=true means no secret is stored and only the vendor can issue one (e.g. Stripe or Shopify when the create omitted it, or Asana/Notion, which issue it only after the ingest URL is registered), so events are accepted but not verified until it is set with hookbase_update_source signing_secret (or, for Notion, adopted via hookbase_adopt_source_pending_verification). verifiesWithoutSecret=true means the provider publishes a key Hookbase already has (wise, aws-sns), so events are verified with no secret.',
+    description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_reveal_source_secret to read the full value. awaitingSigningSecret=true means no secret is stored and only the vendor can issue one (e.g. Stripe or Shopify when the create omitted it, or Asana/Notion, which issue it only after the ingest URL is registered), so events are accepted but not verified until it is set with hookbase_update_source signing_secret (or, for Notion, adopted via hookbase_adopt_source_pending_verification). verifiesWithoutSecret=true means the provider publishes a key Hookbase already has (wise, aws-sns), so events are verified with no secret. catalogProvider is the provider-catalog entry id the source was created for (null when none was given).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /sources/:id'],
     inputSchema: z.object({
@@ -102,6 +114,7 @@ export const sourceTools = [
           isActive: s.isActive,
           transientMode: s.transientMode ?? false,
           allowedMethods: s.allowedMethods ?? [],
+          catalogProvider: s.catalogProvider ?? null,
           createdAt: s.createdAt,
         } : null,
       };
@@ -109,7 +122,7 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_create_source',
-    description: 'Create a new webhook source. Sources receive incoming webhooks and can be connected to destinations via routes. Before creating one for a named vendor, call hookbase_get_provider to find the right provider value and its secretSource: if it is "provider" or "public_key", ask the user for the vendor-issued secret/key and pass it as signing_secret (for public keys and format-checked vendor keys such as Standard Webhooks/svix the API rejects the create without it; for the rest the source is created with no secret and awaitingSigningSecret=true, so events are not verified until it is set); if it is "operator", omit signing_secret and give the user the returned signingSecret to paste into the vendor — it is shown only here (hookbase_reveal_source_secret can read it later). The response also carries ingestUrl (the URL to register with the vendor), verifyToken for WhatsApp/Meta, and awaitingSigningSecret=true when no secret was stored for a vendor-issued provider (including Asana and Notion, which issue it only after the URL is registered).',
+    description: 'Create a new webhook source. Sources receive incoming webhooks and can be connected to destinations via routes. Before creating one for a named vendor, call hookbase_get_provider to find the right provider value and its secretSource: if it is "provider" or "public_key", ask the user for the vendor-issued secret/key and pass it as signing_secret (for public keys and format-checked vendor keys such as Standard Webhooks/svix the API rejects the create without it; for the rest the source is created with no secret and awaitingSigningSecret=true, so events are not verified until it is set); if it is "operator", omit signing_secret and give the user the returned signingSecret to paste into the vendor — it is shown only here (hookbase_reveal_source_secret can read it later). The response also carries ingestUrl (the URL to register with the vendor), verifyToken for WhatsApp/Meta, and awaitingSigningSecret=true when no secret was stored for a vendor-issued provider (including Asana and Notion, which issue it only after the URL is registered). When the source is for a catalog entry whose hookbaseProvider is "custom" (e.g. Salesforce, Plaid, Microsoft Teams, Mollie, Docker Hub, DigitalOcean), pass that entry\'s id as catalog_provider: it cannot be added later.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     routes: ['POST /sources'],
     inputSchema: z.object({
@@ -123,6 +136,7 @@ export const sourceTools = [
       rate_limit_per_minute: z.number().optional().describe('Maximum webhooks per minute (rate limiting)'),
       transient_mode: z.boolean().optional().describe('Enable transient mode - payloads never stored at rest (HIPAA/GDPR compliance). Disables replay and payload viewing.'),
       allowed_methods: z.array(z.enum(INGEST_METHODS)).max(MAX_COLLECTION).optional().describe(ALLOWED_METHODS_DESC),
+      catalog_provider: z.string().optional().describe(CATALOG_PROVIDER_DESC),
     }).strict(),
     handler: async (args: {
       name: string;
@@ -135,6 +149,7 @@ export const sourceTools = [
       rate_limit_per_minute?: number;
       transient_mode?: boolean;
       allowed_methods?: string[];
+      catalog_provider?: string;
     }) => {
       const result = await api.createSource(args.name, args.slug, args.provider, {
         description: args.description,
@@ -144,6 +159,7 @@ export const sourceTools = [
         rateLimitPerMinute: args.rate_limit_per_minute,
         transientMode: args.transient_mode,
         allowedMethods: args.allowed_methods,
+        catalogProvider: args.catalog_provider,
       });
       if (result.error) {
         return { error: result.error };

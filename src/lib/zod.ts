@@ -148,4 +148,16 @@ export function capKeys(maxKeys = MAX_COLLECTION) {
   };
 }
 
+/**
+ * Inputs for the API's page-numbered lists (sources, destinations, routes), sent as page and
+ * pageSize. The API returns `pagination: {total, page, pageSize}` next to the items.
+ */
+export const pageInputs = {
+  page: z.number().int().min(1).optional().describe('Page number, starting at 1 (default 1)'),
+  page_size: z.number().int().min(1).max(100).optional().describe('Results per page, 1 to 100 (default 20)'),
+};
+
+/** Description text for a tool built on pageInputs. */
+export const PAGED_LIST_NOTE = 'Results are paged: 20 per page by default, up to 100 with page_size. Read pagination.total to tell whether more pages remain, and pass page to fetch them.';
+
 export { z };

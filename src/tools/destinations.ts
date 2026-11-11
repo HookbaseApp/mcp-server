@@ -2,7 +2,7 @@
  * Destination tools for MCP server
  */
 
-import { z, boundedRecord, MAX_COLLECTION } from '../lib/zod.js';
+import { z, boundedRecord, MAX_COLLECTION, pageInputs, PAGED_LIST_NOTE } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 import { DESTINATION_TYPES, type DestinationType } from '../lib/api.js';
 
@@ -45,12 +45,12 @@ const CONFIG_DESCRIPTION = 'Configuration object for non-http types; its shape d
 export const destinationTools = [
   {
     name: 'hookbase_list_destinations',
-    description: 'List all webhook destinations in the organization. A destination is where routes forward webhooks: an HTTP endpoint, a queue or event bus, a storage sink, or a bridge that publishes the payload as an outbound event — it receives nothing until hookbase_create_route connects a source to it. Returns summary fields including routeCount and success/failure counts; use hookbase_get_destination for one destination\'s full configuration including auth and throttle settings.',
+    description: 'List webhook destinations in the organization. A destination is where routes forward webhooks: an HTTP endpoint, a queue or event bus, a storage sink, or a bridge that publishes the payload as an outbound event — it receives nothing until hookbase_create_route connects a source to it. Returns summary fields including routeCount and success/failure counts; use hookbase_get_destination for one destination\'s full configuration including auth and throttle settings. ' + PAGED_LIST_NOTE,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /destinations'],
-    inputSchema: z.object({}).strict(),
-    handler: async () => {
-      const result = await api.getDestinations();
+    inputSchema: z.object({ ...pageInputs }).strict(),
+    handler: async (args: { page?: number; page_size?: number }) => {
+      const result = await api.getDestinations({ page: args.page, pageSize: args.page_size });
       if (result.error) {
         return { error: result.error };
       }
@@ -72,12 +72,13 @@ export const destinationTools = [
           failureCount: d.failureCount ?? 0,
           createdAt: d.createdAt,
         })),
+        pagination: result.data?.pagination,
       };
     },
   },
   {
     name: 'hookbase_get_destination',
-    description: 'Get full configuration for a single destination, including its URL or type-specific config, auth settings, and throttle limits. Use hookbase_list_destinations first to find the destination_id, and hookbase_test_destination afterward to verify it is actually reachable.',
+    description: 'Get full configuration for a single destination, including its URL or type-specific config, auth settings, and throttle limits. hasSigningSecret says whether an http destination signs its deliveries (webhook-signature header); the secret itself is never returned here — use hookbase_reveal_destination_secret. Use hookbase_list_destinations first to find the destination_id, and hookbase_test_destination afterward to verify it is actually reachable.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /destinations/:id'],
     inputSchema: z.object({
@@ -100,6 +101,8 @@ export const destinationTools = [
           headers: d.headers,
           authType: d.authType,
           authConfig: d.authConfig,
+          // GET never returns the secret; hookbase_reveal_destination_secret reads it.
+          hasSigningSecret: d.hasSigningSecret ?? false,
           timeoutMs: d.timeoutMs,
           throttle: {
             mode: d.throttleMode ?? 'off',
@@ -119,7 +122,7 @@ export const destinationTools = [
   },
   {
     name: 'hookbase_create_destination',
-    description: 'Create a new webhook destination that webhooks can be forwarded to. Types: "http" (the default) sends an HTTP request; queues and event buses (sqs, eventbridge, servicebus, pubsub, oci_queue) publish a message; storage sinks (s3, r2, gcs, azure_blob) batch events before writing them out; "bridge" publishes the payload as a Hookbase outbound event to your webhook endpoints subscribed to its event type. A destination alone receives nothing — use hookbase_create_route afterward to connect a source to it before any webhooks are actually delivered here. For type "http", url is required; for every other type, config is required and its shape depends on type. A bridge takes no url, headers, auth or static IP, and creating or changing one (or routing into one) needs the events:send permission. Use hookbase_test_destination after creating an http or bridge destination to check it before wiring up a route.',
+    description: 'Create a new webhook destination that webhooks can be forwarded to. Types: "http" (the default) sends an HTTP request; queues and event buses (sqs, eventbridge, servicebus, pubsub, oci_queue) publish a message; storage sinks (s3, r2, gcs, azure_blob) batch events before writing them out; "bridge" publishes the payload as a Hookbase outbound event to your webhook endpoints subscribed to its event type. A destination alone receives nothing — use hookbase_create_route afterward to connect a source to it before any webhooks are actually delivered here. For type "http", url is required; for every other type, config is required and its shape depends on type. A bridge takes no url, headers, auth or static IP, and creating or changing one (or routing into one) needs the events:send permission. An http destination signs every delivery: the reply carries its signingSecret, shown only here, so save it — receivers verify each delivery\'s webhook-signature header with it (hookbase_reveal_destination_secret can read it later). Every other type returns signingSecret null. Use hookbase_test_destination after creating an http or bridge destination to check it before wiring up a route.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     routes: ['POST /destinations'],
     inputSchema: z.object({
@@ -185,21 +188,27 @@ export const destinationTools = [
         return { error: result.error };
       }
       const d = result.data?.destination;
+      const signingSecret = d?.signingSecret ?? null;
       return {
-        message: 'Destination created successfully',
+        message: signingSecret
+          ? 'Destination created successfully. Save signingSecret now: it is shown only in this reply. Receivers verify each delivery\'s webhook-signature header with it; hookbase_reveal_destination_secret can read it later.'
+          : 'Destination created successfully',
         destination: d ? {
           id: d.id,
           name: d.name,
           slug: d.slug,
           type: d.type,
           url: d.url,
+          hasSigningSecret: d.hasSigningSecret ?? false,
+          // http only; null for every other type.
+          signingSecret,
         } : null,
       };
     },
   },
   {
     name: 'hookbase_update_destination',
-    description: 'Update an existing destination\'s configuration — connection details, auth, throttle limits, or type-specific config. A destination\'s type cannot be changed. Only the fields you provide are changed; omitted fields keep their current value, except config, which replaces the stored config whole (to keep a queue or storage secret, send back the masked "••••" value get_destination returned and the stored one is kept). Any change to a bridge destination needs the events:send permission. Changes take effect on the next delivery attempt through this destination, including deliveries already queued or retrying. Set is_active=false to pause all deliveries through this destination without deleting it or the routes pointing at it.',
+    description: 'Update an existing destination\'s configuration — connection details, auth, throttle limits, or type-specific config. A destination\'s type cannot be changed. Only the fields you provide are changed; omitted fields keep their current value, except config, which replaces the stored config whole (to keep a queue or storage secret, send back the masked "••••" value get_destination returned and the stored one is kept). Any change to a bridge destination needs the events:send permission. Changes take effect on the next delivery attempt through this destination, including deliveries already queued or retrying. Set is_active=false to pause all deliveries through this destination without deleting it or the routes pointing at it. To change the signing secret use hookbase_rotate_destination_secret. Returns only a confirmation — call hookbase_get_destination to read the result.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['PATCH /destinations/:id'],
     inputSchema: z.object({
@@ -266,7 +275,8 @@ export const destinationTools = [
       if (result.error) {
         return { error: result.error };
       }
-      return { message: 'Destination updated successfully', destination: result.data?.destination };
+      // PATCH answers {success: true} only; there is no destination object to echo.
+      return { message: 'Destination updated successfully' };
     },
   },
   {
@@ -283,6 +293,49 @@ export const destinationTools = [
         return { error: result.error };
       }
       return { message: 'Destination deleted successfully' };
+    },
+  },
+  {
+    name: 'hookbase_reveal_destination_secret',
+    description: 'Reveal the signing secret of an http destination: the secret receivers use to verify each delivery\'s webhook-signature header. hookbase_create_destination shows it once; use this when that reply is gone. previousSecretExpiresAt is set while a rotation\'s grace period is running (until then deliveries carry the old signature too), otherwise null. Returns 400 for a non-http destination and 404 when it has no secret yet (hookbase_rotate_destination_secret issues one). Requires an API key with write scope and a member+ role; every reveal is audit-logged.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /destinations/:id/reveal-secret'],
+    inputSchema: z.object({
+      destination_id: z.string().describe('The ID of the destination'),
+    }).strict(),
+    handler: async (args: { destination_id: string }) => {
+      const result = await api.revealDestinationSecret(args.destination_id);
+      if (result.error) {
+        return { error: result.error };
+      }
+      return {
+        signingSecret: result.data?.signingSecret ?? null,
+        previousSecretExpiresAt: result.data?.previousSecretExpiresAt ?? null,
+      };
+    },
+  },
+  {
+    name: 'hookbase_rotate_destination_secret',
+    description: 'Issue a new signing secret for an http destination and return it (save it: it is shown here, and hookbase_reveal_destination_secret can read it later). Also issues the first secret for a destination that has none. Unlike a source\'s rotation there is a grace period: for grace_period_seconds (default 3600, at most 86400) deliveries carry both signatures in webhook-signature ("v1,<old> v1,<new>"), so receivers can switch to the new secret without rejecting anything; previousSecretExpiresAt says when the old signature stops being sent. 0 drops the old secret at once, so receivers still using it start rejecting deliveries. Returns 400 for a non-http destination. Requires an API key with write scope and a member+ role.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    routes: ['POST /destinations/:id/rotate-secret'],
+    inputSchema: z.object({
+      destination_id: z.string().describe('The ID of the destination'),
+      grace_period_seconds: z.number().int().min(0).max(86400).optional().describe('How long deliveries keep carrying the old signature next to the new one, in seconds (default 3600 = 1 hour, max 86400). 0 drops the old secret immediately.'),
+    }).strict(),
+    handler: async (args: { destination_id: string; grace_period_seconds?: number }) => {
+      const result = await api.rotateDestinationSecret(args.destination_id, args.grace_period_seconds);
+      if (result.error) {
+        return { error: result.error };
+      }
+      const previousSecretExpiresAt = result.data?.previousSecretExpiresAt ?? null;
+      return {
+        message: previousSecretExpiresAt
+          ? `Secret rotated. Save the new secret now. Until ${previousSecretExpiresAt} deliveries carry both the old and the new signature; switch receivers to the new secret before then.`
+          : 'Secret rotated. Save the new secret now. No old secret remains (grace period 0, or there was none), so deliveries are signed with the new secret only.',
+        signingSecret: result.data?.signingSecret ?? null,
+        previousSecretExpiresAt,
+      };
     },
   },
   {

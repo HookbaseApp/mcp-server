@@ -63,6 +63,27 @@ function orgPath(path: string): string {
   return `/api/organizations/${config.orgId}${path}`;
 }
 
+// Page-numbered lists (sources, destinations, routes): page >= 1 (default 1), pageSize 1..100
+// (default 20). The API clamps both, so an omitted value gets the default.
+export interface PagePagination {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PageOptions {
+  page?: number;
+  pageSize?: number;
+}
+
+function pageQuery(options?: PageOptions): string {
+  const params = new URLSearchParams();
+  if (options?.page) params.set('page', String(options.page));
+  if (options?.pageSize) params.set('pageSize', String(options.pageSize));
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 // ============================================================================
 // Sources
 // ============================================================================
@@ -96,11 +117,13 @@ export interface Source {
   ingestUrl?: string;
   // Verbs the ingest endpoint accepts; [] means any method.
   allowedMethods?: string[];
+  // Provider-catalog entry id the source was created for (create-only); null when none was given.
+  catalogProvider?: string | null;
   createdAt?: string;
 }
 
-export async function getSources(): Promise<ApiResponse<{ sources: Source[] }>> {
-  return request<{ sources: Source[] }>('GET', orgPath('/sources'));
+export async function getSources(options?: PageOptions): Promise<ApiResponse<{ sources: Source[]; pagination: PagePagination }>> {
+  return request<{ sources: Source[]; pagination: PagePagination }>('GET', orgPath(`/sources${pageQuery(options)}`));
 }
 
 export async function getSource(sourceId: string): Promise<ApiResponse<{ source: Source }>> {
@@ -119,6 +142,7 @@ export async function createSource(
     rateLimitPerMinute?: number;
     transientMode?: boolean;
     allowedMethods?: string[];
+    catalogProvider?: string;
   }
 ): Promise<ApiResponse<{ source: Source }>> {
   const body: Record<string, unknown> = {
@@ -131,6 +155,8 @@ export async function createSource(
     rateLimitPerMinute: options?.rateLimitPerMinute,
     transientMode: options?.transientMode,
     allowedMethods: options?.allowedMethods,
+    // Left out when undefined (JSON.stringify drops it); the API answers an unknown id with a 400.
+    catalogProvider: options?.catalogProvider,
   };
 
   if (provider && provider.length > 0) {
@@ -314,6 +340,10 @@ export interface Destination {
   successCount?: number;
   failureCount?: number;
   routeCount?: number;
+  // Whether the destination signs its deliveries (http only). GET never returns the secret itself.
+  hasSigningSecret?: boolean;
+  // POST response only: the http signing secret, shown this once (null for every other type).
+  signingSecret?: string | null;
   createdAt?: string;
 }
 
@@ -328,8 +358,8 @@ export interface ThrottleConfig {
   queueLimit?: number | null;
 }
 
-export async function getDestinations(): Promise<ApiResponse<{ destinations: Destination[] }>> {
-  return request<{ destinations: Destination[] }>('GET', orgPath('/destinations'));
+export async function getDestinations(options?: PageOptions): Promise<ApiResponse<{ destinations: Destination[]; pagination: PagePagination }>> {
+  return request<{ destinations: Destination[]; pagination: PagePagination }>('GET', orgPath(`/destinations${pageQuery(options)}`));
 }
 
 export async function getDestination(destId: string): Promise<ApiResponse<{ destination: Destination }>> {
@@ -393,12 +423,37 @@ export async function updateDestination(
     batchSize?: number;
     batchWindowSeconds?: number;
   }
-): Promise<ApiResponse<{ destination: Destination }>> {
-  return request<{ destination: Destination }>('PATCH', orgPath(`/destinations/${destId}`), data);
+): Promise<ApiResponse<{ success: boolean }>> {
+  // PATCH answers {success: true} only, not the updated destination.
+  return request<{ success: boolean }>('PATCH', orgPath(`/destinations/${destId}`), data);
 }
 
 export async function deleteDestination(destId: string): Promise<ApiResponse<{ success: boolean }>> {
   return request<{ success: boolean }>('DELETE', orgPath(`/destinations/${destId}`));
+}
+
+// previousSecretExpiresAt is set only while a rotation's grace period is running.
+export interface DestinationSigningSecret {
+  signingSecret: string;
+  previousSecretExpiresAt: string | null;
+}
+
+// http destinations only (400 otherwise); 404 when none has been issued yet. Audit-logged.
+export async function revealDestinationSecret(destId: string): Promise<ApiResponse<DestinationSigningSecret>> {
+  return request<DestinationSigningSecret>('GET', orgPath(`/destinations/${encodeURIComponent(destId)}/reveal-secret`));
+}
+
+// Without gracePeriodSeconds the API keeps the old secret for 3600s; 0 drops it at once. During the
+// grace period deliveries carry both signatures. The body is sent only when a value is given.
+export async function rotateDestinationSecret(
+  destId: string,
+  gracePeriodSeconds?: number,
+): Promise<ApiResponse<DestinationSigningSecret>> {
+  return request<DestinationSigningSecret>(
+    'POST',
+    orgPath(`/destinations/${encodeURIComponent(destId)}/rotate-secret`),
+    gracePeriodSeconds !== undefined ? { gracePeriodSeconds } : undefined,
+  );
 }
 
 // An http destination's test sends a request (status, latencyMs, responseBody); a bridge's is a dry
@@ -460,8 +515,8 @@ export interface FilterCondition {
   value?: string;
 }
 
-export async function getRoutes(): Promise<ApiResponse<{ routes: Route[] }>> {
-  return request<{ routes: Route[] }>('GET', orgPath('/routes'));
+export async function getRoutes(options?: PageOptions): Promise<ApiResponse<{ routes: Route[]; pagination: PagePagination }>> {
+  return request<{ routes: Route[]; pagination: PagePagination }>('GET', orgPath(`/routes${pageQuery(options)}`));
 }
 
 export async function getRoute(routeId: string): Promise<ApiResponse<{ route: Route }>> {
@@ -507,8 +562,9 @@ export async function updateRoute(
     isActive?: boolean;
     holdOnCircuitOpen?: boolean;
   }
-): Promise<ApiResponse<{ route: Route }>> {
-  return request<{ route: Route }>('PATCH', orgPath(`/routes/${routeId}`), data);
+): Promise<ApiResponse<{ success: boolean }>> {
+  // PATCH answers {success: true} only, not the updated route.
+  return request<{ success: boolean }>('PATCH', orgPath(`/routes/${routeId}`), data);
 }
 
 export async function deleteRoute(routeId: string): Promise<ApiResponse<{ success: boolean }>> {

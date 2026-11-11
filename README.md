@@ -105,16 +105,16 @@ Add it as a remote MCP connector:
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (149)
+## Available Tools (151)
 
 ### Inbound Webhooks
 
 #### Sources
 Every `source_id` accepts the source's ID or its slug.
 
-- `hookbase_list_sources` - List all webhook sources
-- `hookbase_get_source` - Get source details (secret masked; includes `awaitingSigningSecret` / `verifiesWithoutSecret`)
-- `hookbase_create_source` - Create new source; accepts `signing_secret` (required for vendor-issued and public-key providers) and `verify_token` (WhatsApp/Meta), returns `ingestUrl` and the generated `signingSecret` / `verifyToken` once
+- `hookbase_list_sources` - List webhook sources (paged: `page`, `page_size` up to 100, default 20; returns `pagination.total`)
+- `hookbase_get_source` - Get source details (secret masked; includes `awaitingSigningSecret` / `verifiesWithoutSecret` / `catalogProvider`)
+- `hookbase_create_source` - Create new source; accepts `signing_secret` (required for vendor-issued and public-key providers) and `verify_token` (WhatsApp/Meta), returns `ingestUrl` and the generated `signingSecret` / `verifyToken` once. Pass `catalog_provider` (the catalog entry id, create-only) for vendors whose catalog `hookbaseProvider` is `custom`
 - `hookbase_update_source` - Update source config, including `signing_secret` (null removes it) and `verify_token` (null regenerates it)
 - `hookbase_delete_source` - Delete a source (cascades to its routes, their deliveries, and every event ever ingested through it)
 - `hookbase_rotate_source_secret` - Generate a new signing secret (no grace period - old secret stops working immediately; 400 for built-in-key, public-key, vendor-issued and secret-after-registration providers)
@@ -129,18 +129,20 @@ Every `source_id` accepts the source's ID or its slug.
 - `hookbase_get_provider` - Full setup detail for one provider: secret source/label/instructions, verify token, setup guide, event types
 
 #### Destinations
-- `hookbase_list_destinations` - List all destinations
-- `hookbase_get_destination` - Get destination details
-- `hookbase_create_destination` - Create new destination: HTTP, queue (SQS, EventBridge, Service Bus, Pub/Sub, OCI Queue), storage (S3, R2, GCS, Azure Blob), or a bridge that publishes outbound events
-- `hookbase_update_destination` - Update destination config
+- `hookbase_list_destinations` - List destinations (paged: `page`, `page_size` up to 100, default 20; returns `pagination.total`)
+- `hookbase_get_destination` - Get destination details, including `hasSigningSecret` (never the secret)
+- `hookbase_create_destination` - Create new destination: HTTP, queue (SQS, EventBridge, Service Bus, Pub/Sub, OCI Queue), storage (S3, R2, GCS, Azure Blob), or a bridge that publishes outbound events. An HTTP destination's `signingSecret` (verifies the `webhook-signature` header) is returned once
+- `hookbase_update_destination` - Update destination config (returns a confirmation only)
 - `hookbase_delete_destination` - Delete a destination (cascades to its routes and their deliveries, including pending/queued ones)
 - `hookbase_test_destination` - Test destination connectivity (a dry run for bridges, with an optional sample payload)
+- `hookbase_reveal_destination_secret` - Reveal an HTTP destination's signing secret (audit-logged), with `previousSecretExpiresAt` during a rotation's grace period
+- `hookbase_rotate_destination_secret` - Issue a new HTTP destination signing secret; for `grace_period_seconds` (default 3600, 0 to 86400) deliveries carry both signatures
 
 #### Routes
-- `hookbase_list_routes` - List all routes, with each route's hold setting (`holdOnCircuitOpen`)
+- `hookbase_list_routes` - List routes, with each route's hold setting (`holdOnCircuitOpen`) (paged: `page`, `page_size` up to 100, default 20; returns `pagination.total`)
 - `hookbase_get_route` - Get route details, including `heldCount` (deliveries held while its circuit is open, counted to 10,000; `heldCountCapped` means more)
 - `hookbase_create_route` - Create source→destination route; `hold_on_circuit_open: false` dead-letters deliveries while the circuit is open instead of holding them (default `true`)
-- `hookbase_update_route` - Update route config, including `hold_on_circuit_open`
+- `hookbase_update_route` - Update route config, including `hold_on_circuit_open` (returns a confirmation only)
 - `hookbase_delete_route` - Delete a route (only its own delivery history; source/destination/filter/transform are untouched)
 
 #### Events
