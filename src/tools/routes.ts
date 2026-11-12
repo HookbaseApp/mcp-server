@@ -2,7 +2,7 @@
  * Route tools for MCP server
  */
 
-import { z, MAX_COLLECTION } from '../lib/zod.js';
+import { z, MAX_COLLECTION, pageInputs, PAGED_LIST_NOTE } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,12 +32,12 @@ const holdOnCircuitOpenSchema = z.boolean().optional().describe(
 export const routeTools = [
   {
     name: 'hookbase_list_routes',
-    description: 'List all routes in the organization. A route connects one source to one destination and is what actually causes webhooks to be forwarded — a source and destination alone deliver nothing until a route links them. Use hookbase_get_route for one route\'s full filter/transform configuration.',
-    inputSchema: z.object({}).strict(),
+    description: 'List routes in the organization. A route connects one source to one destination and is what actually causes webhooks to be forwarded — a source and destination alone deliver nothing until a route links them. Use hookbase_get_route for one route\'s full filter/transform configuration. ' + PAGED_LIST_NOTE,
+    inputSchema: z.object({ ...pageInputs }).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /routes'],
-    handler: async () => {
-      const result = await api.getRoutes();
+    handler: async (args: { page?: number; page_size?: number }) => {
+      const result = await api.getRoutes({ page: args.page, pageSize: args.page_size });
       if (result.error) {
         return { error: result.error };
       }
@@ -56,6 +56,7 @@ export const routeTools = [
           holdOnCircuitOpen: r.holdOnCircuitOpen,
           createdAt: r.createdAt,
         })),
+        pagination: result.data?.pagination,
       };
     },
   },
@@ -157,7 +158,7 @@ export const routeTools = [
   },
   {
     name: 'hookbase_update_route',
-    description: 'Update an existing route\'s source, destination, filter, transform, priority, active state, or hold setting. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently. Changing the source, destination, failovers or transform needs the events:send permission when the route delivers to a bridge destination after the change (moving a route off a bridge does not).',
+    description: 'Update an existing route\'s source, destination, filter, transform, priority, active state, or hold setting. Only the fields you provide are changed; omitted fields keep their current value. Changing source_id or destination_id repoints the route immediately, affecting the next incoming webhook — it does not retroactively re-deliver past events. Set is_active=false to pause forwarding without deleting the route or losing its delivery history; use hookbase_delete_route only when you want the route gone permanently. Changing the source, destination, failovers or transform needs the events:send permission when the route delivers to a bridge destination after the change (moving a route off a bridge does not). Returns only a confirmation — call hookbase_get_route to read the result.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['PATCH /routes/:id'],
     inputSchema: z.object({
@@ -205,7 +206,8 @@ export const routeTools = [
       if (result.error) {
         return { error: result.error };
       }
-      return { message: 'Route updated successfully', route: result.data?.route };
+      // PATCH answers {success: true} only; there is no route object to echo.
+      return { message: 'Route updated successfully' };
     },
   },
   {
