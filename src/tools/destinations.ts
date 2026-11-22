@@ -222,7 +222,7 @@ export const destinationTools = [
       timeout_ms: z.number().optional().describe('Request timeout in milliseconds'),
       throttle: throttleInputSchema,
       is_active: z.boolean().optional().describe('Enable or disable the destination'),
-      config: z.record(z.string(), z.any()).optional().describe('Type-specific configuration, replacing the stored one. See hookbase_create_destination for each type\'s shape.'),
+      config: z.record(z.string(), z.any()).optional().describe('Type-specific configuration, replacing the stored one. See hookbase_create_destination for each type\'s shape. A credential sent back masked ("••••…", as hookbase_get_destination returns it) keeps its stored value.'),
       field_mapping: z.array(z.object({
         source: z.string().describe('Source field path in the webhook payload'),
         target: z.string().describe('Target field name in the warehouse'),

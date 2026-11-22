@@ -38,12 +38,12 @@ export const notificationChannelTools = [
     name: 'hookbase_create_notification_channel',
     description:
       'Create a notification channel. config shape depends on type:\n' +
-      '- email: { addresses: ["a@b.com", ...] }\n' +
-      '- slack: { webhookUrl }\n' +
-      '- discord: { webhookUrl }\n' +
-      '- teams: { webhookUrl }\n' +
-      '- pagerduty: { routingKey, severity? }\n' +
-      '- webhook: { url, secret? } (signed with HMAC-SHA256 if secret provided)\n' +
+      '- email: `{ addresses: ["a@b.com", ...] }`\n' +
+      '- slack: `{ webhookUrl }`\n' +
+      '- discord: `{ webhookUrl }`\n' +
+      '- teams: `{ webhookUrl }`\n' +
+      '- pagerduty: `{ routingKey, severity? }`\n' +
+      '- webhook: `{ url, secret? }` (signed with HMAC-SHA256 if secret provided)\n' +
       'Requires the "notification_channels" feature on the org plan; admin or owner role required.',
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     routes: ['POST /notification-channels'],
