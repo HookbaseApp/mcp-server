@@ -143,6 +143,7 @@ Direction: ${args.direction || 'both inbound and outbound'}
    - Circuit breaker open → Use hookbase_reset_endpoint_circuit after fixing. Messages with status='held' wait for recovery (hookbase_get_endpoint shows heldCount) and are sent once the circuit closes
    - Endpoint disabled → Use hookbase_update_endpoint to re-enable
    - URL changed → Update endpoint URL
+   - Async acknowledgement (hookbase_get_endpoint shows asyncAckEnabled) → Messages with status='awaiting_ack' were accepted with HTTP 202 and wait for the receiver's ack until ackDeadline. In hookbase_get_message_attempts, errorType ack_failed means the receiver reported a failure and ack_timeout means no ack arrived by the deadline; both are retried with the same webhook-id until the attempts run out. awaiting_ack messages can't be replayed
 6. Use hookbase_replay_message to retry exhausted or DLQ messages
 
 ## Get Statistics:

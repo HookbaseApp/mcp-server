@@ -1447,6 +1447,9 @@ export interface WebhookEndpoint {
   /** Held messages on this endpoint, counted to 10,000 (heldCountCapped: more). GET /webhook-endpoints/:id only. */
   heldCount?: number;
   heldCountCapped?: boolean;
+  /** A 202 waits up to ackTimeoutSeconds for the receiver's ack (POST to the x-hookbase-ack-url). List and GET. */
+  asyncAckEnabled?: boolean;
+  ackTimeoutSeconds?: number;
   totalMessages?: number;
   totalSuccesses?: number;
   totalFailures?: number;
@@ -1504,6 +1507,8 @@ export async function createWebhookEndpoint(data: {
   circuitSuccessThreshold?: number;
   circuitCooldownSeconds?: number;
   holdOnCircuitOpen?: boolean;
+  asyncAckEnabled?: boolean;
+  ackTimeoutSeconds?: number;
 }): Promise<ApiResponse<{ data: WebhookEndpoint; warning: string }>> {
   return request<{ data: WebhookEndpoint; warning: string }>('POST', orgPath('/webhook-endpoints'), data);
 }
@@ -1521,6 +1526,8 @@ export async function updateWebhookEndpoint(
     circuitSuccessThreshold?: number;
     circuitCooldownSeconds?: number;
     holdOnCircuitOpen?: boolean;
+    asyncAckEnabled?: boolean;
+    ackTimeoutSeconds?: number;
   }
 ): Promise<ApiResponse<{ data: WebhookEndpoint }>> {
   return request<{ data: WebhookEndpoint }>('PATCH', orgPath(`/webhook-endpoints/${endpointId}`), data);
@@ -1767,7 +1774,7 @@ export async function sendOutboundEvent(data: {
 /** Every status an outbound message can be in; GET /outbound-messages?status= matches one exactly. */
 export const OUTBOUND_MESSAGE_STATUSES = [
   'pending', 'processing', 'success', 'awaiting_retry', 'held', 'awaiting_pull', 'fifo_waiting',
-  'failed', 'exhausted', 'dlq',
+  'awaiting_ack', 'failed', 'exhausted', 'dlq',
 ] as const;
 export type OutboundMessageStatus = typeof OUTBOUND_MESSAGE_STATUSES[number];
 
@@ -1784,6 +1791,8 @@ export interface OutboundMessage {
   lastErrorMessage?: string | null;
   /** When a held message's hold ends; null for any other status. */
   holdExpiresAt?: string | null;
+  /** When an awaiting_ack message's accepted (202) attempt times out unless the receiver acks it; null for any other status. */
+  ackDeadline?: string | null;
   createdAt: string;
   completedAt?: string | null;
   endpointUrl?: string;
@@ -1797,12 +1806,19 @@ export interface OutboundAttempt {
   id: string;
   messageId: string;
   attemptNumber: number;
-  status: 'success' | 'failed';
+  /** accepted: answered 202 and waiting for the receiver's ack; it becomes success, failed or timeout. */
+  status: 'success' | 'failed' | 'timeout' | 'accepted';
   responseStatus?: number | null;
   responseTimeMs?: number | null;
   responseBody?: string | null;
+  /** ack_failed / ack_timeout for an accepted attempt the receiver failed or never acked. */
+  errorType?: string | null;
   errorMessage?: string | null;
   createdAt: string;
+  /** The receiver's ack: when it landed, and its message and result. Null until then. */
+  ackedAt?: string | null;
+  ackMessage?: string | null;
+  ackResult?: unknown;
 }
 
 export interface OutboundMessageListResponse {
@@ -1820,6 +1836,7 @@ export interface OutboundStats {
   failed: number;
   awaitingRetry: number;
   held: number;
+  awaitingAck: number;
   exhausted: number;
   dlq: number;
   total: number;

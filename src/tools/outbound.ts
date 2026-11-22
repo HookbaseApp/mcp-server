@@ -196,10 +196,18 @@ const holdOnCircuitOpenSchema = z.boolean().optional().describe(
   'While the endpoint\'s circuit breaker is open, hold messages (true, the default): they wait without spending attempts and are sent when the endpoint recovers, or dead-lettered as circuit_breaker_exhausted when the plan\'s retry window ends. false: dead-letter them as circuit_breaker_open at once. FIFO and polling endpoints never hold.',
 );
 
+// Async acknowledgement (API migration 0143): the API checks the same bounds and the plan.
+const asyncAckEnabledSchema = z.boolean().optional().describe(
+  'Async acknowledgement (Pro and Business, HTTP endpoints only). When on, each delivery carries x-hookbase-ack-url and x-hookbase-ack-deadline headers, and an answer of exactly HTTP 202 leaves the message awaiting_ack until the receiver POSTs its outcome to the ack URL. A missed deadline fails the attempt (error type ack_timeout), which is retried with the same webhook-id. Any other success status is final. Default false.',
+);
+const ackTimeoutSecondsSchema = z.number().int().min(60).max(86400).optional().describe(
+  'Seconds the receiver has to acknowledge a 202, 60 to 86400 (default 3600). Hookbase allows 60 more seconds of grace before it counts the attempt as timed out.',
+);
+
 export const endpointTools = [
   {
     name: 'hookbase_list_endpoints',
-    description: 'List webhook endpoints. Endpoints are URLs that receive webhook deliveries.',
+    description: 'List webhook endpoints. Endpoints are URLs that receive webhook deliveries. Each one carries its hold setting (holdOnCircuitOpen) and whether it uses async acknowledgement (asyncAckEnabled).',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /webhook-endpoints'],
     inputSchema: z.object({
@@ -235,6 +243,7 @@ export const endpointTools = [
           isEnabled: !(ep.isDisabled === 1 || ep.isDisabled === true),
           circuitState: ep.circuitState,
           holdOnCircuitOpen: ep.holdOnCircuitOpen,
+          asyncAckEnabled: ep.asyncAckEnabled,
           totalMessages: ep.totalMessages ?? 0,
           totalSuccesses: ep.totalSuccesses ?? 0,
           totalFailures: ep.totalFailures ?? 0,
@@ -248,7 +257,7 @@ export const endpointTools = [
   },
   {
     name: 'hookbase_get_endpoint',
-    description: 'Get detailed information about a webhook endpoint, including circuit breaker state, hold setting and delivery statistics. heldCount is how many of its messages are held while its circuit is open (counted to 10,000; heldCountCapped means more).',
+    description: 'Get detailed information about a webhook endpoint, including circuit breaker state, hold setting, async acknowledgement setting and delivery statistics. heldCount is how many of its messages are held while its circuit is open (counted to 10,000; heldCountCapped means more). asyncAckEnabled: an HTTP 202 waits up to ackTimeoutSeconds for the receiver\'s ack.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /webhook-endpoints/:id'],
     inputSchema: z.object({
@@ -283,6 +292,8 @@ export const endpointTools = [
           holdOnCircuitOpen: ep.holdOnCircuitOpen,
           heldCount: ep.heldCount,
           heldCountCapped: ep.heldCountCapped,
+          asyncAckEnabled: ep.asyncAckEnabled,
+          ackTimeoutSeconds: ep.ackTimeoutSeconds,
           totalMessages: ep.totalMessages ?? 0,
           totalSuccesses: ep.totalSuccesses ?? 0,
           totalFailures: ep.totalFailures ?? 0,
@@ -316,6 +327,8 @@ export const endpointTools = [
       circuit_success_threshold: z.number().optional().describe('Successes to close circuit (default 2)'),
       circuit_cooldown_seconds: z.number().optional().describe('Cooldown before half-open (default 60)'),
       hold_on_circuit_open: holdOnCircuitOpenSchema,
+      async_ack_enabled: asyncAckEnabledSchema,
+      ack_timeout_seconds: ackTimeoutSecondsSchema,
     }).strict(),
     handler: async (args: {
       application_id: string;
@@ -327,6 +340,8 @@ export const endpointTools = [
       circuit_success_threshold?: number;
       circuit_cooldown_seconds?: number;
       hold_on_circuit_open?: boolean;
+      async_ack_enabled?: boolean;
+      ack_timeout_seconds?: number;
     }) => {
       const result = await api.createWebhookEndpoint({
         applicationId: args.application_id,
@@ -338,6 +353,8 @@ export const endpointTools = [
         circuitSuccessThreshold: args.circuit_success_threshold,
         circuitCooldownSeconds: args.circuit_cooldown_seconds,
         holdOnCircuitOpen: args.hold_on_circuit_open,
+        asyncAckEnabled: args.async_ack_enabled,
+        ackTimeoutSeconds: args.ack_timeout_seconds,
       });
       if (result.error) {
         return { error: result.error };
@@ -375,6 +392,12 @@ export const endpointTools = [
       hold_on_circuit_open: holdOnCircuitOpenSchema.describe(
         'Hold messages while the endpoint\'s circuit is open (true) or dead-letter them as circuit_breaker_open (false). Turning it off leaves messages already held to the recovery sweep, which releases them; they are dead-lettered on their next attempt if the circuit is still open.',
       ),
+      async_ack_enabled: asyncAckEnabledSchema.describe(
+        'Turn async acknowledgement on (Pro and Business, HTTP endpoints only) or off. On: an answer of exactly HTTP 202 waits for the receiver to POST its outcome to the x-hookbase-ack-url header. Turning it off is always allowed, including after a downgrade; messages already awaiting_ack still finish through their ack or deadline.',
+      ),
+      ack_timeout_seconds: ackTimeoutSecondsSchema.describe(
+        'Seconds the receiver has to acknowledge a 202, 60 to 86400. Applies to attempts made after the change.',
+      ),
     }).strict(),
     handler: async (args: {
       endpoint_id: string;
@@ -388,6 +411,8 @@ export const endpointTools = [
       circuit_success_threshold?: number;
       circuit_cooldown_seconds?: number;
       hold_on_circuit_open?: boolean;
+      async_ack_enabled?: boolean;
+      ack_timeout_seconds?: number;
     }) => {
       const result = await api.updateWebhookEndpoint(args.endpoint_id, {
         url: args.url,
@@ -400,6 +425,8 @@ export const endpointTools = [
         circuitSuccessThreshold: args.circuit_success_threshold,
         circuitCooldownSeconds: args.circuit_cooldown_seconds,
         holdOnCircuitOpen: args.hold_on_circuit_open,
+        asyncAckEnabled: args.async_ack_enabled,
+        ackTimeoutSeconds: args.ack_timeout_seconds,
       });
       if (result.error) {
         return { error: result.error };

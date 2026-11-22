@@ -251,10 +251,10 @@ Applications represent a customer or integration that receives your outbound web
 
 #### Webhook Endpoints
 Endpoints are the URLs where webhooks are delivered.
-- `hookbase_list_endpoints` - List endpoints with filters, with each endpoint's hold setting (`holdOnCircuitOpen`)
-- `hookbase_get_endpoint` - Get endpoint details with circuit breaker state and `heldCount` (messages held while its circuit is open, counted to 10,000; `heldCountCapped` means more)
-- `hookbase_create_endpoint` - Create endpoint (returns signing secret); `hold_on_circuit_open: false` dead-letters messages while the circuit is open instead of holding them (default `true`)
-- `hookbase_update_endpoint` - Update endpoint URL or config, including `hold_on_circuit_open`
+- `hookbase_list_endpoints` - List endpoints with filters, with each endpoint's hold setting (`holdOnCircuitOpen`) and async acknowledgement setting (`asyncAckEnabled`)
+- `hookbase_get_endpoint` - Get endpoint details with circuit breaker state, `heldCount` (messages held while its circuit is open, counted to 10,000; `heldCountCapped` means more), `asyncAckEnabled` and `ackTimeoutSeconds`
+- `hookbase_create_endpoint` - Create endpoint (returns signing secret); `hold_on_circuit_open: false` dead-letters messages while the circuit is open instead of holding them (default `true`); `async_ack_enabled: true` makes an HTTP 202 wait for the receiver's ack, within `ack_timeout_seconds` (60–86400, default 3600; Pro and Business)
+- `hookbase_update_endpoint` - Update endpoint URL or config, including `hold_on_circuit_open`, `async_ack_enabled` and `ack_timeout_seconds`
 - `hookbase_delete_endpoint` - Delete endpoint
 - `hookbase_rotate_endpoint_secret` - Rotate signing secret with grace period
 - `hookbase_reset_endpoint_circuit` - Reset circuit breaker to closed state
@@ -282,11 +282,11 @@ Read-only, unauthenticated docs surface for an org's published (`is_public`) eve
 
 #### Send Events & Track Messages
 - `hookbase_send_event` - Send webhook event to subscribed endpoints (`messagesHeld` counts messages held because their endpoint's circuit is open, when there are any)
-- `hookbase_list_outbound_messages` - List delivery records. `status` is one of `pending`, `processing`, `success`, `awaiting_retry`, `held`, `awaiting_pull`, `fifo_waiting`, `failed`, `exhausted` or `dlq`. Held messages carry `holdExpiresAt`
-- `hookbase_get_outbound_message` - Get message details
-- `hookbase_get_message_attempts` - Get delivery attempt history
+- `hookbase_list_outbound_messages` - List delivery records. `status` is one of `pending`, `processing`, `success`, `awaiting_retry`, `held`, `awaiting_pull`, `fifo_waiting`, `awaiting_ack`, `failed`, `exhausted` or `dlq`. Held messages carry `holdExpiresAt`; `awaiting_ack` messages carry `ackDeadline`
+- `hookbase_get_outbound_message` - Get message details (and `ackDeadline` while `awaiting_ack`)
+- `hookbase_get_message_attempts` - Get delivery attempt history. An attempt answered with HTTP 202 on an async-ack endpoint is `accepted` until acked; `errorType` is `ack_failed` or `ack_timeout` when the receiver reported a failure or missed the deadline, and `ackedAt` / `ackMessage` / `ackResult` hold the receiver's ack
 - `hookbase_replay_message` - Replay failed message
-- `hookbase_get_outbound_stats` - Get delivery statistics by status
+- `hookbase_get_outbound_stats` - Get delivery statistics by status, including `awaitingAck`
 
 #### Webhook Analytics
 - `hookbase_get_webhook_analytics` - Status counts, success rate, latency percentiles, top failing endpoints, error types, DLQ reasons, chart series
@@ -379,6 +379,7 @@ Once configured, you can ask Claude things like:
 - "Rotate the signing secret for Acme's endpoint with a 2-hour grace period"
 - "List all endpoints that have their circuit breaker open"
 - "How many messages are held for Acme's endpoint, and when do their holds end?"
+- "Which messages are still waiting for Acme's endpoint to acknowledge them, and when are their deadlines?"
 - "Get delivery statistics for outbound webhooks"
 
 ## Debugging with the MCP Inspector
