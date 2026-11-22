@@ -17,7 +17,8 @@ const ruleSchema = z.object({
   action: z.object({
     type: z.enum(['redact', 'mask', 'hash', 'remove']).describe(
       'redact: replace the value with "[REDACTED]"; mask: replace all but the last keepLastN characters with * (a value that short is masked whole); ' +
-      'hash: replace it with a marker starting "sha256:"; remove: delete it',
+      'hash: replace it with "hmac-sha256:v1:" and a digest keyed for the organization (the same value always gives the same digest there, ' +
+      'so it can be joined on, but it can\'t be reversed by hashing guesses or computed outside Hookbase); remove: delete it',
     ),
     keepLastN: z.number().int().min(0).max(20).optional().describe('For mask: characters left visible at the end (default 4)'),
   }).describe('What happens to each value the rule matches'),
