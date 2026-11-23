@@ -7,14 +7,21 @@ import * as api from '../lib/api.js';
 
 const ruleSchema = z.object({
   match: z.object({
-    type: z.enum(['path', 'field_name', 'regex_value', 'header']),
-    value: z.string().min(1).max(500),
-    flags: z.string().max(10).optional(),
-  }),
+    type: z.enum(['path', 'field_name', 'regex_value', 'header']).describe(
+      'path: one dotted path into the payload ("user.ssn", "items[0].card"); field_name: every payload key with exactly this name, at any depth; ' +
+      'regex_value: every string field value the regex matches; header: the header with this name (case-insensitive)',
+    ),
+    value: z.string().min(1).max(500).describe('The path, key name, regex or header name'),
+    flags: z.string().max(10).optional().describe('Regex flags for regex_value, such as "i"'),
+  }).describe('What the rule applies to'),
   action: z.object({
-    type: z.enum(['redact', 'mask', 'hash', 'remove']),
-    keepLastN: z.number().int().min(0).max(20).optional(),
-  }),
+    type: z.enum(['redact', 'mask', 'hash', 'remove']).describe(
+      'redact: replace the value with "[REDACTED]"; mask: replace all but the last keepLastN characters with * (a value that short is masked whole); ' +
+      'hash: replace it with "hmac-sha256:v1:" and a digest keyed for the organization (the same value always gives the same digest there, ' +
+      'so it can be joined on, but it can\'t be reversed by hashing guesses or computed outside Hookbase); remove: delete it',
+    ),
+    keepLastN: z.number().int().min(0).max(20).optional().describe('For mask: characters left visible at the end (default 4)'),
+  }).describe('What happens to each value the rule matches'),
 });
 
 const scopeEnum = z.enum(['storage', 'delivery', 'both']);
@@ -55,7 +62,7 @@ export const redactionPolicyTools = [
     inputSchema: z.object({
       name: z.string().min(1).max(100),
       source_id: z.guid().nullable().optional(),
-      rules: z.array(ruleSchema).min(1).max(50),
+      rules: z.array(ruleSchema).min(1).max(50).describe('1 to 50 rules, applied in order'),
       scope: scopeEnum.optional().describe('Default "both"'),
     }).strict(),
     handler: async (args: {
@@ -83,7 +90,7 @@ export const redactionPolicyTools = [
       policy_id: z.string(),
       name: z.string().min(1).max(100),
       source_id: z.guid().nullable().optional(),
-      rules: z.array(ruleSchema).min(1).max(50),
+      rules: z.array(ruleSchema).min(1).max(50).describe('The whole ruleset, replacing the stored one: 1 to 50 rules, applied in order'),
       scope: scopeEnum,
       is_active: z.boolean(),
     }).strict(),
@@ -124,7 +131,7 @@ export const redactionPolicyTools = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['POST /redaction-policies/preview'],
     inputSchema: z.object({
-      rules: z.array(ruleSchema).min(1).max(50),
+      rules: z.array(ruleSchema).min(1).max(50).describe('The candidate ruleset: 1 to 50 rules, applied in order'),
       payload: z.unknown().optional(),
       headers: boundedRecord(z.string()).optional(),
     }).strict(),

@@ -592,10 +592,17 @@ export const subscriptionTools = [
     inputSchema: z.object({
       endpoint_id: z.string().describe('The endpoint ID to subscribe'),
       event_type_id: z.string().describe('The event type ID to subscribe to'),
-      filter_expression: z.string().optional().describe('JSONata expression to filter events'),
+      filter_expression: z.string().optional().describe(
+        'JSONata expression evaluated against the event payload at send time (max 1000 chars). The endpoint receives the event only when ' +
+        'the result is truthy by JSONata\'s `$boolean` rules (`false`, `0`, `""`, `[]` and a path that matches nothing mean skip). ' +
+        '`$eventType` and `$labels` are bound. An expression that fails at send time counts as no match; one that doesn\'t compile is rejected when saved.',
+      ),
       label_filters: boundedRecord(z.union([z.string(), z.array(z.string()).max(MAX_COLLECTION)])).optional().describe('Label filters to match against event labels (e.g., {"environment": "production"} or {"region": ["us-east", "us-west"]})'),
       label_filter_mode: z.enum(['all', 'any']).optional().describe('Filter mode: "all" requires all filters to match (AND), "any" requires at least one filter to match (OR). Default: "all"'),
-      transform_id: z.string().optional().describe('Transform ID to modify payload before delivery'),
+      transform_id: z.string().optional().describe(
+        'One of the organization\'s transforms, applied to the payload before signing (Content-Type follows its output format). ' +
+        'Inactive transforms are skipped; a transform that throws sends the message to the DLQ with reason `transform_failed`.',
+      ),
       is_enabled: z.boolean().optional().describe('Enable the subscription (default true)'),
     }).strict(),
     handler: async (args: {
@@ -632,18 +639,18 @@ export const subscriptionTools = [
     routes: ['PATCH /webhook-subscriptions/:id'],
     inputSchema: z.object({
       subscription_id: z.string().describe('The ID of the subscription to update'),
-      filter_expression: z.string().optional().describe('New filter expression (null to remove)'),
+      filter_expression: z.string().nullable().optional().describe('New JSONata filter expression, with the same rules as in hookbase_create_subscription (null or "" removes it)'),
       label_filters: boundedRecord(z.union([z.string(), z.array(z.string()).max(MAX_COLLECTION)])).optional().nullable().describe('Label filters to match against event labels (null to remove)'),
       label_filter_mode: z.enum(['all', 'any']).optional().nullable().describe('Filter mode: "all" (AND) or "any" (OR)'),
-      transform_id: z.string().optional().describe('New transform ID (null to remove)'),
+      transform_id: z.string().nullable().optional().describe('New transform, applied before signing as in hookbase_create_subscription (null removes it)'),
       is_enabled: z.boolean().optional().describe('Enable or disable the subscription'),
     }).strict(),
     handler: async (args: {
       subscription_id: string;
-      filter_expression?: string;
+      filter_expression?: string | null;
       label_filters?: Record<string, string | string[]> | null;
       label_filter_mode?: 'all' | 'any' | null;
-      transform_id?: string;
+      transform_id?: string | null;
       is_enabled?: boolean;
     }) => {
       const result = await api.updateWebhookSubscription(args.subscription_id, {

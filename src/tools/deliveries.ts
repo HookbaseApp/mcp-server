@@ -5,6 +5,18 @@
 import { z, boundedRecord } from '../lib/zod.js';
 import * as api from '../lib/api.js';
 
+/** A transform_override's formats. The API checks them against the transform formats. */
+const FORMAT_DESCRIPTION = {
+  input: 'Format of the payload the code reads: json, xml or text (default: the route transform\'s)',
+  output: 'Format the code returns, which sets the delivery\'s Content-Type: json, xml or text (default: the route transform\'s)',
+};
+
+/** The replay endpoints refuse RESERVED_HEADERS (api utils/destination-headers.ts) in headersOverride. */
+const HEADERS_OVERRIDE_DESCRIPTION =
+  'Outbound HTTP headers to send instead of/in addition to the destination\'s configured headers. Max 50 entries. ' +
+  'Cannot set host, content-length, transfer-encoding, connection, x-hookbase-hop, or the signature headers ' +
+  '(webhook-id, webhook-timestamp, webhook-signature and their x-hookbase-* equivalents).';
+
 export const deliveryTools = [
   {
     name: 'hookbase_list_deliveries',
@@ -153,13 +165,10 @@ export const deliveryTools = [
       transform_override: z.object({
         code: z.string().describe('The new transform code (JSONata or JavaScript). Max 64KB.'),
         type: z.enum(['jsonata', 'javascript']).optional().describe('Transform language (default: route\'s current type)'),
-        input_format: z.string().optional(),
-        output_format: z.string().optional(),
+        input_format: z.string().optional().describe(FORMAT_DESCRIPTION.input),
+        output_format: z.string().optional().describe(FORMAT_DESCRIPTION.output),
       }).optional().describe('One-shot transform applied to this replay only, unless persist_transform=true'),
-      headers_override: boundedRecord(z.string()).optional().describe(
-        'Outbound HTTP headers to send instead of/in addition to the destination\'s configured headers. ' +
-        'Cannot set host, content-length, transfer-encoding, or connection. Max 50 entries.',
-      ),
+      headers_override: boundedRecord(z.string()).optional().describe(HEADERS_OVERRIDE_DESCRIPTION),
       persist_transform: z.boolean().optional().describe(
         'When true and transform_override is set, the new code is saved to the route\'s transform after replay. ' +
         'Only works when the route already has a transform attached.',
@@ -258,13 +267,16 @@ export const deliveryTools = [
         'Destination id or slug to send the replays to instead of each route\'s normal destination. Must belong to the same organization.',
       ),
       transform_override: z.object({
-        code: z.string(),
-        type: z.enum(['jsonata', 'javascript']).optional(),
-        input_format: z.string().optional(),
-        output_format: z.string().optional(),
-      }).optional(),
-      headers_override: boundedRecord(z.string()).optional(),
-      persist_transform: z.boolean().optional(),
+        code: z.string().describe('The new transform code (JSONata or JavaScript). Max 64KB.'),
+        type: z.enum(['jsonata', 'javascript']).optional().describe('Transform language (default: each route\'s current type)'),
+        input_format: z.string().optional().describe(FORMAT_DESCRIPTION.input),
+        output_format: z.string().optional().describe(FORMAT_DESCRIPTION.output),
+      }).optional().describe('One-shot transform applied to these replays only, unless persist_transform=true'),
+      headers_override: boundedRecord(z.string()).optional().describe(HEADERS_OVERRIDE_DESCRIPTION),
+      persist_transform: z.boolean().optional().describe(
+        'When true and transform_override is set, the new code is saved to the route\'s transform after the replays. ' +
+        'Every delivery in the cluster must share one route, and that route must already have a transform attached.',
+      ),
       limit: z.number().int().min(1).max(2000).optional().describe('Max cluster deliveries to replay (default 500, hard cap 2000)'),
     }).strict(),
     handler: async (args: {
