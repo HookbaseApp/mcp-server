@@ -54,10 +54,53 @@ const CATALOG_PROVIDER_DESC =
   'addresses, so with it set a bridge destination does not count the source\'s IP allowlist as proof of ' +
   'the sender. Create-only: it cannot be changed later. An unknown id is rejected with a 400.';
 
+// Connecting a source and replacing its provider key take a provider API key. No tool here takes
+// one (a key must not pass through the model), so the descriptions send the user elsewhere.
+const PROVIDER_KEY_ELSEWHERE =
+  'Connecting a source and replacing its provider key need a provider API key, which this server never ' +
+  'accepts: the user does both in the Hookbase dashboard, an SDK, the CLI or Terraform.';
+
+/** The source's provider connection summary, or null (also on API versions without one). */
+function connectionSummary(c: api.SourceConnectionSummary | null | undefined) {
+  return c ? {
+    provider: c.provider,
+    status: c.status,
+    environment: c.environment,
+    reconcileEnabled: c.reconcileEnabled,
+  } : null;
+}
+
+/** A connection, field by field: whatever else the API might add (never the key) stays out. */
+function connectionDetail(c: api.SourceConnection) {
+  return {
+    id: c.id,
+    provider: c.provider,
+    environment: c.environment,
+    status: c.status,
+    credentialHint: c.credentialHint,
+    credentialExpiresAt: c.credentialExpiresAt ?? null,
+    accountLabel: c.accountLabel ?? null,
+    remoteId: c.remoteId ?? null,
+    events: c.events ?? [],
+    githubTarget: c.githubTarget ?? null,
+    priorSourceSettings: c.priorSourceSettings ?? null,
+    reconcileEnabled: c.reconcileEnabled,
+    running: c.running ?? false,
+    nextRunAt: c.nextRunAt ?? null,
+    lastRunAt: c.lastRunAt ?? null,
+    lastRun: c.lastRun ?? null,
+    lastError: c.lastError ?? null,
+    consecutiveFailures: c.consecutiveFailures ?? 0,
+    recoveredTotal: c.recoveredTotal ?? 0,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
+
 export const sourceTools = [
   {
     name: 'hookbase_list_sources',
-    description: 'List webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount and routeCount; use hookbase_get_source for one source\'s full configuration. ' + PAGED_LIST_NOTE,
+    description: 'List webhook sources in the organization. A source is an ingest endpoint that receives incoming webhooks from a provider like GitHub or Stripe and records them as events — it forwards nothing on its own until hookbase_create_route connects it to a destination. Returns summary fields including eventCount, routeCount and connection ({provider, status, environment, reconcileEnabled} for a source connected to Stripe, GitHub or Paddle, else null); use hookbase_get_source for one source\'s full configuration. ' + PAGED_LIST_NOTE,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /sources'],
     inputSchema: z.object({ ...pageInputs }).strict(),
@@ -77,6 +120,7 @@ export const sourceTools = [
           allowedMethods: s.allowedMethods ?? [],
           eventCount: s.eventCount ?? 0,
           routeCount: s.routeCount ?? 0,
+          connection: connectionSummary(s.connection),
           createdAt: s.createdAt,
         })),
         pagination: result.data?.pagination,
@@ -85,7 +129,7 @@ export const sourceTools = [
   },
   {
     name: 'hookbase_get_source',
-    description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_reveal_source_secret to read the full value. awaitingSigningSecret=true means no secret is stored and only the vendor can issue one (e.g. Stripe or Shopify when the create omitted it, or Asana/Notion, which issue it only after the ingest URL is registered), so events are accepted but not verified until it is set with hookbase_update_source signing_secret (or, for Notion, adopted via hookbase_adopt_source_pending_verification). verifiesWithoutSecret=true means the provider publishes a key Hookbase already has (wise, aws-sns), so events are verified with no secret. catalogProvider is the provider-catalog entry id the source was created for (null when none was given).',
+    description: 'Get full configuration for a single source, including its allowed HTTP methods, rate limit, and signature-verification settings. The signing secret itself is never returned here — only hasSigningSecret and signingSecretLast4; use hookbase_reveal_source_secret to read the full value. awaitingSigningSecret=true means no secret is stored and only the vendor can issue one (e.g. Stripe or Shopify when the create omitted it, or Asana/Notion, which issue it only after the ingest URL is registered), so events are accepted but not verified until it is set with hookbase_update_source signing_secret (or, for Notion, adopted via hookbase_adopt_source_pending_verification). verifiesWithoutSecret=true means the provider publishes a key Hookbase already has (wise, aws-sns), so events are verified with no secret. catalogProvider is the provider-catalog entry id the source was created for (null when none was given). connection is {provider, status, environment, reconcileEnabled} when the source is connected to Stripe, GitHub or Paddle (Hookbase registered the provider\'s webhook and recovers events it failed to deliver; hookbase_get_source_connection has the details), else null.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /sources/:id'],
     inputSchema: z.object({
@@ -115,6 +159,7 @@ export const sourceTools = [
           transientMode: s.transientMode ?? false,
           allowedMethods: s.allowedMethods ?? [],
           catalogProvider: s.catalogProvider ?? null,
+          connection: connectionSummary(s.connection),
           createdAt: s.createdAt,
         } : null,
       };
@@ -348,6 +393,129 @@ export const sourceTools = [
         return { error: result.error };
       }
       return { message: 'Verification token adopted as the source\'s signing secret.' };
+    },
+  },
+  {
+    name: 'hookbase_get_source_connection',
+    description: 'Show a source\'s connection to its provider (Stripe, GitHub or Paddle) and the state of recovery. A connected source has a webhook Hookbase registered at the provider with a stored provider API key (never returned; credentialHint shows its prefix and last 4 characters), and recovery asks the provider which events it failed to deliver and gets them to the source. Returns connection with provider, environment, status (pending: a connect is in progress; active; error: the last recovery run failed, see lastError; credential_invalid: the provider no longer accepts the stored key), accountLabel, events, reconcileEnabled (recovery on), running, nextRunAt, lastRunAt, lastRun (found, alreadyReceived, recovered, requested, gaveUp, stoppedReason), lastError and recoveredTotal. Returns connection: null when the source is not connected. ' + PROVIDER_KEY_ELSEWHERE,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id/connection'],
+    inputSchema: z.object({
+      source_id: z.string().describe(SOURCE_ID_DESC),
+    }).strict(),
+    handler: async (args: { source_id: string }) => {
+      const result = await api.getSourceConnection(args.source_id);
+      if (result.error) {
+        return api.toolError(result);
+      }
+      const c = result.data?.connection;
+      if (!c) {
+        return {
+          connection: null,
+          message: 'This source is not connected to a provider. ' + PROVIDER_KEY_ELSEWHERE,
+        };
+      }
+      return { connection: connectionDetail(c) };
+    },
+  },
+  {
+    name: 'hookbase_list_source_recovery_items',
+    description: 'List a connected source\'s recovery ledger: the events its provider said it failed to deliver, newest first, and what became of each. Each item has providerEventId, method (self_ingest: Hookbase fetched the Stripe event and ingested it; redelivery: GitHub was asked to redeliver it; replay: Paddle was asked to replay it), status (pending: requested or to be retried, not arrived yet; recovered; gave_up: 3 attempts failed or the provider no longer has it), attempts, providerRef, eventId (the Hookbase event it arrived as, when known; read it with hookbase_get_event), firstSeenAt, lastAttemptAt and recoveredAt. Items are kept for 35 days after their last change. Empty when the source is not connected.',
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['GET /sources/:id/connection/items'],
+    inputSchema: z.object({
+      source_id: z.string().describe(SOURCE_ID_DESC),
+      status: z.enum(api.RECOVERY_ITEM_STATUSES).optional().describe('Only items with this status. Omit for all.'),
+      limit: z.number().int().min(1).max(100).optional().describe('Default 50, max 100'),
+    }).strict(),
+    handler: async (args: { source_id: string; status?: string; limit?: number }) => {
+      const result = await api.listSourceRecoveryItems(args.source_id, { status: args.status, limit: args.limit });
+      if (result.error) {
+        return api.toolError(result);
+      }
+      return {
+        items: (result.data?.items ?? []).map(i => ({
+          providerEventId: i.providerEventId,
+          method: i.method,
+          status: i.status,
+          attempts: i.attempts,
+          providerRef: i.providerRef ?? null,
+          eventId: i.eventId ?? null,
+          firstSeenAt: i.firstSeenAt,
+          lastAttemptAt: i.lastAttemptAt ?? null,
+          recoveredAt: i.recoveredAt ?? null,
+        })),
+      };
+    },
+  },
+  {
+    name: 'hookbase_run_source_recovery',
+    description: 'Recover a connected source\'s missed events now instead of at the next scheduled run (every 15 minutes once caught up). Hookbase asks the provider which events it failed to deliver, then fetches Stripe events and ingests them itself, asks GitHub to redeliver, or asks Paddle to replay, so the events reach the source and its routes. Returns {queued: true}: the run starts within a minute, and hookbase_get_source_connection shows its result as lastRun (hookbase_list_source_recovery_items lists each event). Recovery needs a Pro or Business plan (403 otherwise). A refusal is a 409 with code RECONCILE_REFUSED and a reason: pending (a connect is in progress), credential_invalid (the provider no longer accepts the stored key; the user must replace it outside this server), disabled (recovery is off; hookbase_set_source_recovery turns it on), running (a run is in progress) or too_soon (a run finished in the last 5 minutes). Members, admins and owners; API keys need the write scope.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    routes: ['POST /sources/:id/connection/reconcile'],
+    inputSchema: z.object({
+      source_id: z.string().describe(SOURCE_ID_DESC),
+    }).strict(),
+    handler: async (args: { source_id: string }) => {
+      const result = await api.runSourceRecovery(args.source_id);
+      if (result.error) {
+        return api.toolError(result);
+      }
+      return {
+        queued: result.data?.queued ?? true,
+        message: 'Recovery queued: a run starts within the next minute. Call hookbase_get_source_connection for its result (lastRun).',
+      };
+    },
+  },
+  {
+    name: 'hookbase_set_source_recovery',
+    description: 'Turn recovery on or off for a connected source. This changes only that setting: it cannot replace the stored provider key, and no tool on this server takes one. Turning recovery on needs a Pro or Business plan (403 otherwise); turning it off works on any plan and stops the scheduled runs, while the provider\'s webhook stays registered and events keep arriving. Returns the updated connection (as hookbase_get_source_connection does). A 404 means the source is not connected; a 409 with code CONNECTION_CONFLICT means a connect is in progress. Admin or owner only; API keys need the write scope.',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    routes: ['PATCH /sources/:id/connection'],
+    inputSchema: z.object({
+      source_id: z.string().describe(SOURCE_ID_DESC),
+      reconcile_enabled: z.boolean().describe('true turns recovery on, false turns it off'),
+    }).strict(),
+    handler: async (args: { source_id: string; reconcile_enabled: boolean }) => {
+      // Only reconcile_enabled goes out, whatever else arrives: the same PATCH takes a provider key.
+      const result = await api.setSourceRecovery(args.source_id, args.reconcile_enabled);
+      if (result.error) {
+        return api.toolError(result);
+      }
+      const c = result.data?.connection;
+      return {
+        message: args.reconcile_enabled ? 'Recovery turned on.' : 'Recovery turned off.',
+        connection: c ? connectionDetail(c) : null,
+      };
+    },
+  },
+  {
+    name: 'hookbase_disconnect_source',
+    description: 'Disconnect a source from its provider (Stripe, GitHub or Paddle): Hookbase deletes the webhook it registered at the provider and the stored provider key, and recovery stops, so the provider stops sending this source events. The source, its routes and its events stay, and it keeps its current settings, including the signing secret connect set (priorSourceSettings in hookbase_get_source_connection shows what connect changed); once disconnected, hookbase_update_source can change them. Returns {success, remoteRemoved, retrying, message}: retrying=true means the provider could not be reached and Hookbase keeps trying to remove the webhook; otherwise, when remoteRemoved is false, message says to delete the webhook at the provider by hand. A 409 with code CONNECTION_CONFLICT means a connect is in progress. Reconnecting needs a provider API key, which this server never accepts: the user reconnects in the Hookbase dashboard, an SDK, the CLI or Terraform. Admin or owner only; API keys need the write scope.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    routes: ['DELETE /sources/:id/connection'],
+    inputSchema: z.object({
+      source_id: z.string().describe(SOURCE_ID_DESC),
+    }).strict(),
+    handler: async (args: { source_id: string }) => {
+      const result = await api.disconnectSource(args.source_id);
+      if (result.error) {
+        return api.toolError(result);
+      }
+      const d = result.data;
+      const remoteRemoved = d?.remoteRemoved ?? false;
+      const retrying = d?.retrying ?? false;
+      return {
+        success: d?.success ?? true,
+        remoteRemoved,
+        retrying,
+        // The API's message is null when nothing is left for the user to do.
+        message: d?.message ?? (remoteRemoved
+          ? 'Disconnected. The provider webhook is gone and the stored key was deleted.'
+          : retrying
+            ? 'Disconnected. Hookbase is still removing the provider webhook and keeps trying in the background.'
+            : 'Disconnected.'),
+      };
     },
   },
 ];

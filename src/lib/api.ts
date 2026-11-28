@@ -10,6 +10,33 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   status: number;
+  // Copied from an error body when the API sends them. code is machine-readable (RATE_LIMITED,
+  // CONNECTION_CONFLICT, RECONCILE_REFUSED...), reason says why a request was refused (a refused
+  // recovery run's 409), and retryAfter is how many seconds to wait (429). A tool returns them
+  // next to `error` with toolError().
+  code?: string;
+  reason?: string;
+  retryAfter?: number;
+}
+
+type ErrorFields = Pick<ApiResponse<unknown>, 'code' | 'reason' | 'retryAfter'>;
+
+function errorFields(body: unknown): ErrorFields {
+  if (!body || typeof body !== 'object') return {};
+  const { code, reason, retryAfter } = body as Record<string, unknown>;
+  return {
+    ...(typeof code === 'string' && code ? { code } : {}),
+    ...(typeof reason === 'string' && reason ? { reason } : {}),
+    ...(typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? { retryAfter } : {}),
+  };
+}
+
+/** A failed call as a tool result: the error text, plus code, reason and retryAfter when the API sent them. */
+export function toolError(result: ApiResponse<unknown>): { error: string } & ErrorFields {
+  return {
+    error: result.error ?? 'Request failed',
+    ...errorFields(result),
+  };
 }
 
 /**
@@ -43,6 +70,7 @@ async function request<T>(
       return {
         error: (data.error as string) || (data.message as string) || 'Request failed',
         status: response.status,
+        ...errorFields(data),
       };
     }
 
@@ -119,6 +147,9 @@ export interface Source {
   allowedMethods?: string[];
   // Provider-catalog entry id the source was created for (create-only); null when none was given.
   catalogProvider?: string | null;
+  // List and detail only: the provider connection's summary, null when the source isn't connected.
+  // Absent on API versions before connected sources.
+  connection?: SourceConnectionSummary | null;
   createdAt?: string;
 }
 
@@ -224,6 +255,122 @@ export async function getSourcePendingVerification(sourceId: string): Promise<Ap
 
 export async function adoptSourcePendingVerification(sourceId: string): Promise<ApiResponse<{ success: boolean }>> {
   return request<{ success: boolean }>('POST', orgPath(`/sources/${sourceId}/pending-verification/adopt`));
+}
+
+// ============================================================================
+// Source connections (connected sources)
+// ============================================================================
+
+// A source connected to Stripe, GitHub or Paddle: Hookbase registered the provider's webhook with a
+// provider API key and recovers events the provider failed to deliver. Connecting and replacing the
+// key (PUT, and PATCH with `credential`) take that key, so this client has no call for them: a
+// provider key must never pass through a model's context. Enum-like fields stay plain strings so a
+// value added later reads through.
+
+export interface SourceConnectionSummary {
+  provider: string;
+  status: string;
+  environment: string;
+  reconcileEnabled: boolean;
+}
+
+export interface RecoveryRun {
+  startedAt?: string;
+  finishedAt?: string;
+  found?: number;
+  alreadyReceived?: number;
+  recovered?: number;
+  requested?: number;
+  gaveUp?: number;
+  behind?: boolean;
+  stoppedReason?: string;
+  droppedBefore?: string;
+}
+
+export interface SourceConnection {
+  id: string;
+  provider: string;
+  environment: string;
+  // pending | active | error | credential_invalid
+  status: string;
+  // The key's prefix and last 4 characters; the key itself is never returned.
+  credentialHint: string;
+  credentialExpiresAt?: string | null;
+  accountLabel?: string | null;
+  remoteId?: string | null;
+  events?: string[];
+  priorSourceSettings?: Record<string, unknown> | null;
+  githubTarget?: { kind: string; owner?: string; repo?: string; org?: string } | null;
+  reconcileEnabled: boolean;
+  running?: boolean;
+  nextRunAt?: string | null;
+  lastRunAt?: string | null;
+  lastRun?: RecoveryRun | null;
+  lastError?: string | null;
+  consecutiveFailures?: number;
+  recoveredTotal?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RecoveryItem {
+  providerEventId: string;
+  // self_ingest | redelivery | replay
+  method: string;
+  // pending | recovered | gave_up
+  status: string;
+  attempts: number;
+  providerRef: string | null;
+  eventId: string | null;
+  firstSeenAt: string;
+  lastAttemptAt: string | null;
+  recoveredAt: string | null;
+}
+
+export const RECOVERY_ITEM_STATUSES = ['pending', 'recovered', 'gave_up'] as const;
+
+export interface DisconnectSourceResult {
+  success: boolean;
+  remoteRemoved: boolean;
+  retrying: boolean;
+  message: string | null;
+}
+
+// The id or slug is encoded so it stays one path segment.
+function connectionPath(sourceId: string, rest = ''): string {
+  return orgPath(`/sources/${encodeURIComponent(sourceId)}/connection${rest}`);
+}
+
+// {connection: null} when the source isn't connected.
+export async function getSourceConnection(sourceId: string): Promise<ApiResponse<{ connection: SourceConnection | null }>> {
+  return request<{ connection: SourceConnection | null }>('GET', connectionPath(sourceId));
+}
+
+// Sends reconcileEnabled and nothing else: the same PATCH also takes a replacement provider key,
+// which this client never sends. Turning recovery on needs a Pro or Business plan (403).
+export async function setSourceRecovery(sourceId: string, reconcileEnabled: boolean): Promise<ApiResponse<{ connection: SourceConnection }>> {
+  return request<{ connection: SourceConnection }>('PATCH', connectionPath(sourceId), { reconcileEnabled });
+}
+
+export async function disconnectSource(sourceId: string): Promise<ApiResponse<DisconnectSourceResult>> {
+  return request<DisconnectSourceResult>('DELETE', connectionPath(sourceId));
+}
+
+// 202 {queued: true}. A refusal is a 409 with code RECONCILE_REFUSED and a reason.
+export async function runSourceRecovery(sourceId: string): Promise<ApiResponse<{ queued: boolean }>> {
+  return request<{ queued: boolean }>('POST', connectionPath(sourceId, '/reconcile'));
+}
+
+// Newest first; limit 1..100 (the API defaults to 50).
+export async function listSourceRecoveryItems(
+  sourceId: string,
+  options?: { status?: string; limit?: number },
+): Promise<ApiResponse<{ items: RecoveryItem[] }>> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set('status', options.status);
+  if (options?.limit) params.set('limit', String(options.limit));
+  const qs = params.toString();
+  return request<{ items: RecoveryItem[] }>('GET', connectionPath(sourceId, `/items${qs ? `?${qs}` : ''}`));
 }
 
 // ============================================================================
@@ -589,6 +736,15 @@ export interface Event {
   status?: 'delivered' | 'failed' | 'pending' | 'partial' | 'no_routes';
   deliveryStats?: { total: number; delivered: number; failed: number; pending: number } | null;
   receivedAt: string;
+  // Detail only: set when connected-source recovery got the event here after the provider failed
+  // to deliver it. Absent on API versions before connected sources.
+  recovery?: EventRecovery | null;
+}
+
+export interface EventRecovery {
+  // self_ingest (Stripe) | redelivery (GitHub) | replay (Paddle)
+  method: string;
+  recoveredAt: string;
 }
 
 export async function getEvents(options?: {
