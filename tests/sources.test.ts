@@ -29,7 +29,8 @@ async function setup(routes: Array<{ match: string; method?: string; response: (
   const { sourceTools } = await import('../src/tools/sources.js');
   const { providerCatalogTools } = await import('../src/tools/provider-catalog.js');
   const { routeTools } = await import('../src/tools/routes.js');
-  const all = [...sourceTools, ...providerCatalogTools, ...routeTools];
+  const { eventTools } = await import('../src/tools/events.js');
+  const all = [...sourceTools, ...providerCatalogTools, ...routeTools, ...eventTools];
   const tool = (name: string) => {
     const t = all.find(x => x.name === name);
     if (!t) throw new Error(`no tool ${name}`);
@@ -144,6 +145,217 @@ describe('source tools', () => {
     }]);
     const result = await tool('hookbase_get_source_pending_verification').handler({ source_id: 's1' } as never);
     expect(result).toEqual({ error: 'No verification token is waiting for this source' });
+  });
+});
+
+const CONNECTION = {
+  id: 'c1', provider: 'stripe', environment: 'live', status: 'active', credentialHint: 'rk_live_…a1b2',
+  credentialExpiresAt: null, accountLabel: 'Stripe (live mode)', remoteId: 'we_123', events: ['*'],
+  priorSourceSettings: { provider: null, hadSigningSecret: false }, githubTarget: null,
+  reconcileEnabled: true, running: false, nextRunAt: '2026-11-27T12:15:00Z', lastRunAt: '2026-11-27T12:00:00Z',
+  lastRun: { startedAt: '2026-11-27T12:00:00Z', finishedAt: '2026-11-27T12:00:02Z', found: 2, alreadyReceived: 0, recovered: 2, requested: 0, gaveUp: 0, behind: false, stoppedReason: 'caught_up' },
+  lastError: null, consecutiveFailures: 0, recoveredTotal: 7,
+  createdAt: '2026-11-20T00:00:00Z', updatedAt: '2026-11-27T12:00:02Z',
+};
+
+describe('source connection tools', () => {
+  beforeEach(() => {
+    process.env.HOOKBASE_API_KEY = 'whr_test_key';
+    process.env.HOOKBASE_API_URL = 'https://api.test.local';
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const ORG = 'https://api.test.local/api/organizations/org_1';
+
+  it.each([
+    ['hookbase_get_source_connection', {}, 'GET', '/sources/s1/connection', undefined,
+      { connection: CONNECTION }, { connection: CONNECTION }],
+    ['hookbase_list_source_recovery_items', {}, 'GET', '/sources/s1/connection/items', undefined,
+      { items: [] }, { items: [] }],
+    ['hookbase_list_source_recovery_items', { status: 'gave_up', limit: 10 }, 'GET', '/sources/s1/connection/items?status=gave_up&limit=10', undefined,
+      { items: [] }, { items: [] }],
+    ['hookbase_run_source_recovery', {}, 'POST', '/sources/s1/connection/reconcile', undefined,
+      { queued: true }, { queued: true }],
+    ['hookbase_set_source_recovery', { reconcile_enabled: false }, 'PATCH', '/sources/s1/connection', { reconcileEnabled: false },
+      { connection: { ...CONNECTION, reconcileEnabled: false } }, { message: 'Recovery turned off.', connection: { ...CONNECTION, reconcileEnabled: false } }],
+    ['hookbase_set_source_recovery', { reconcile_enabled: true }, 'PATCH', '/sources/s1/connection', { reconcileEnabled: true },
+      { connection: CONNECTION }, { message: 'Recovery turned on.', connection: CONNECTION }],
+    ['hookbase_disconnect_source', {}, 'DELETE', '/sources/s1/connection', undefined,
+      { success: true, remoteRemoved: true, retrying: false, message: null }, { success: true, remoteRemoved: true, retrying: false }],
+  ])('%s %j calls %s %s', async (name, extra, method, path, body, response, expected) => {
+    const { tool, calls } = await setup([{ match: '/connection', method, response: () => json(response) }]);
+    const args = { source_id: 's1', ...extra };
+    expect(tool(name).inputSchema.safeParse(args).success).toBe(true);
+    const result = await tool(name).handler(args as never) as Record<string, unknown>;
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0].method).toBe(method);
+    expect(calls()[0].url).toBe(`${ORG}${path}`);
+    expect(calls()[0].body).toEqual(body);
+    expect(result).toMatchObject(expected);
+  });
+
+  it('encodes the source id or slug as one path segment', async () => {
+    const { tool, calls } = await setup([{ match: '/connection', method: 'GET', response: () => json({ connection: null }) }]);
+    await tool('hookbase_get_source_connection').handler({ source_id: 'a/b?c' } as never);
+    expect(calls()[0].url).toBe(`${ORG}/sources/a%2Fb%3Fc/connection`);
+  });
+
+  it('get_source_connection says when the source is not connected', async () => {
+    const { tool } = await setup([{ match: '/sources/s1/connection', method: 'GET', response: () => json({ connection: null }) }]);
+    const result = await tool('hookbase_get_source_connection').handler({ source_id: 's1' } as never) as Record<string, unknown>;
+    expect(result.connection).toBeNull();
+    expect(result.message).toMatch(/not connected/);
+    expect(result.message).toMatch(/dashboard/);
+  });
+
+  it('get_source_connection copies fields by name, so nothing else the API sends reaches the model', async () => {
+    const { tool } = await setup([{
+      match: '/sources/s1/connection', method: 'GET',
+      response: () => json({ connection: { ...CONNECTION, credential: 'rk_live_SHOULD_NOT_APPEAR', credentialEnc: 'enc:v1:x' } }),
+    }]);
+    const result = await tool('hookbase_get_source_connection').handler({ source_id: 's1' } as never);
+    expect(result).toStrictEqual({ connection: CONNECTION });
+    expect(JSON.stringify(result)).not.toContain('SHOULD_NOT_APPEAR');
+  });
+
+  it('list_source_recovery_items maps each item', async () => {
+    const item = {
+      providerEventId: 'evt_1', method: 'self_ingest', status: 'recovered', attempts: 1, providerRef: null,
+      eventId: '33333333-4444-4555-8666-777777777777', firstSeenAt: '2026-11-27T12:00:00Z',
+      lastAttemptAt: '2026-11-27T12:00:01Z', recoveredAt: '2026-11-27T12:00:01Z',
+    };
+    const { tool } = await setup([{ match: '/connection/items', method: 'GET', response: () => json({ items: [item] }) }]);
+    const result = await tool('hookbase_list_source_recovery_items').handler({ source_id: 's1' } as never);
+    expect(result).toStrictEqual({ items: [item] });
+  });
+
+  it('list_source_recovery_items takes only a known status and a limit of 1 to 100', async () => {
+    const { tool } = await setup([]);
+    const list = tool('hookbase_list_source_recovery_items');
+    expect(list.inputSchema.safeParse({ source_id: 's1', status: 'failed' }).success).toBe(false);
+    expect(list.inputSchema.safeParse({ source_id: 's1', limit: 0 }).success).toBe(false);
+    expect(list.inputSchema.safeParse({ source_id: 's1', limit: 101 }).success).toBe(false);
+    expect(list.inputSchema.safeParse({ source_id: 's1', status: 'pending', limit: 100 }).success).toBe(true);
+  });
+
+  it('run_source_recovery surfaces a 409 refusal with its code and reason', async () => {
+    const { tool } = await setup([{
+      match: '/connection/reconcile', method: 'POST',
+      response: () => json({ error: 'Recovery is running for this source now.', code: 'RECONCILE_REFUSED', reason: 'running' }, 409),
+    }]);
+    const result = await tool('hookbase_run_source_recovery').handler({ source_id: 's1' } as never);
+    expect(result).toStrictEqual({ error: 'Recovery is running for this source now.', code: 'RECONCILE_REFUSED', reason: 'running' });
+  });
+
+  it('run_source_recovery passes the plan refusal (403) through as an error', async () => {
+    const { tool } = await setup([{
+      match: '/connection/reconcile', method: 'POST',
+      response: () => json({ error: 'Recovering missed events needs the Pro or Business plan.' }, 403),
+    }]);
+    const result = await tool('hookbase_run_source_recovery').handler({ source_id: 's1' } as never);
+    expect(result).toStrictEqual({ error: 'Recovering missed events needs the Pro or Business plan.' });
+  });
+
+  it('keeps retryAfter from a 429 body and drops fields of the wrong type', async () => {
+    const { tool } = await setup([
+      { match: '/sources/limited/connection', method: 'PATCH', response: () => json({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: 120 }, 429) },
+      { match: '/sources/odd/connection', method: 'PATCH', response: () => json({ error: 'Nope', code: 7, reason: { x: 1 }, retryAfter: '120' }, 409) },
+    ]);
+    const set = tool('hookbase_set_source_recovery');
+    expect(await set.handler({ source_id: 'limited', reconcile_enabled: true } as never))
+      .toStrictEqual({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: 120 });
+    expect(await set.handler({ source_id: 'odd', reconcile_enabled: true } as never)).toStrictEqual({ error: 'Nope' });
+  });
+
+  it('disconnect_source surfaces CONNECTION_CONFLICT and a 404 for a source that is not connected', async () => {
+    const { tool } = await setup([
+      { match: '/sources/busy/connection', method: 'DELETE', response: () => json({ error: 'A connect for this source is in progress.', code: 'CONNECTION_CONFLICT' }, 409) },
+      { match: '/sources/plain/connection', method: 'DELETE', response: () => json({ error: 'This source is not connected' }, 404) },
+    ]);
+    const disconnect = tool('hookbase_disconnect_source');
+    expect(await disconnect.handler({ source_id: 'busy' } as never))
+      .toStrictEqual({ error: 'A connect for this source is in progress.', code: 'CONNECTION_CONFLICT' });
+    expect(await disconnect.handler({ source_id: 'plain' } as never)).toStrictEqual({ error: 'This source is not connected' });
+  });
+
+  it('disconnect_source keeps the API message and explains a background retry', async () => {
+    const stillThere = 'The webhook is still in Stripe (Stripe (live mode)): delete it there.';
+    const { tool } = await setup([
+      { match: '/sources/manual/connection', method: 'DELETE', response: () => json({ success: true, remoteRemoved: false, retrying: false, message: stillThere }) },
+      { match: '/sources/retry/connection', method: 'DELETE', response: () => json({ success: true, remoteRemoved: false, retrying: true, message: null }) },
+    ]);
+    const disconnect = tool('hookbase_disconnect_source');
+    expect(await disconnect.handler({ source_id: 'manual' } as never))
+      .toStrictEqual({ success: true, remoteRemoved: false, retrying: false, message: stillThere });
+    const retry = await disconnect.handler({ source_id: 'retry' } as never) as Record<string, unknown>;
+    expect(retry).toMatchObject({ remoteRemoved: false, retrying: true });
+    expect(retry.message).toMatch(/keeps trying/);
+  });
+
+  it('set_source_recovery rejects a credential in its input and never sends one', async () => {
+    const KEY = 'rk_live_51SECRETKEYTEXT';
+    const { tool, calls } = await setup([{ match: '/sources/s1/connection', method: 'PATCH', response: () => json({ connection: CONNECTION }) }]);
+    const set = tool('hookbase_set_source_recovery');
+    expect(set.inputSchema.safeParse({ source_id: 's1', reconcile_enabled: true, credential: KEY }).success).toBe(false);
+    expect(set.inputSchema.safeParse({ source_id: 's1', credential: KEY }).success).toBe(false);
+    // A host that skipped the schema still sends only reconcileEnabled.
+    await set.handler({ source_id: 's1', reconcile_enabled: true, credential: KEY } as never);
+    expect(calls()[0].body).toStrictEqual({ reconcileEnabled: true });
+    expect(JSON.stringify(calls())).not.toContain(KEY);
+  });
+
+  it('no tool takes a provider key', async () => {
+    const { allTools } = await import('../src/tools/index.js');
+    const { z } = await import('../src/lib/zod.js');
+    const names = allTools.map(t => t.name);
+    expect(names).not.toContain('hookbase_connect_source');
+    for (const t of allTools.filter(t => /connection|recovery|disconnect/.test(t.name))) {
+      const props = Object.keys((z.toJSONSchema(t.inputSchema, { io: 'input' }) as { properties?: object }).properties ?? {});
+      expect(props.filter(p => /credential|key|token/i.test(p)), t.name).toEqual([]);
+    }
+  });
+
+  it('list_sources and get_source return the connection summary, null when absent', async () => {
+    const summary = { provider: 'stripe', status: 'active', environment: 'live', reconcileEnabled: true };
+    const { tool } = await setup([
+      { match: '/sources/conn', method: 'GET', response: () => json({ source: { id: 's1', name: 'S', slug: 'conn', provider: 'stripe', connection: { ...summary, extra: 'x' } } }) },
+      { match: '/sources/old', method: 'GET', response: () => json({ source: { id: 's2', name: 'O', slug: 'old', provider: null } }) },
+      { match: '/sources', method: 'GET', response: () => json({
+        sources: [
+          { id: 's1', name: 'S', slug: 'conn', provider: 'stripe', connection: summary },
+          { id: 's2', name: 'O', slug: 'old', provider: null, connection: null },
+          { id: 's3', name: 'P', slug: 'pre', provider: null },
+        ],
+        pagination: { total: 3, page: 1, pageSize: 20 },
+      }) },
+    ]);
+    const list = await tool('hookbase_list_sources').handler({} as never) as { sources: Array<Record<string, unknown>> };
+    expect(list.sources.map(s => s.connection)).toStrictEqual([summary, null, null]);
+    const got = await tool('hookbase_get_source').handler({ source_id: 'conn' } as never) as { source: Record<string, unknown> };
+    expect(got.source.connection).toStrictEqual(summary);
+    const old = await tool('hookbase_get_source').handler({ source_id: 'old' } as never) as { source: Record<string, unknown> };
+    expect(old.source.connection).toBeNull();
+  });
+
+  it('get_event returns recovery, null when the event was not recovered', async () => {
+    const event = { id: 'e1', sourceId: 's1', sourceName: 'S', eventType: 'invoice.paid', headers: {}, signatureValid: true, status: 'delivered', receivedAt: '2026-11-27T12:00:01Z' };
+    const { tool } = await setup([
+      { match: '/events/e1', method: 'GET', response: () => json({ event: { ...event, recovery: { method: 'self_ingest', recoveredAt: '2026-11-27T12:00:01Z' } }, payload: {}, deliveries: [] }) },
+      { match: '/events/e2', method: 'GET', response: () => json({ event: { ...event, id: 'e2', recovery: null }, payload: {}, deliveries: [] }) },
+      { match: '/events/e3', method: 'GET', response: () => json({ event: { ...event, id: 'e3' }, payload: {}, deliveries: [] }) },
+    ]);
+    const get = tool('hookbase_get_event');
+    const recovered = await get.handler({ event_id: 'e1' } as never) as { event: Record<string, unknown> };
+    expect(recovered.event.recovery).toStrictEqual({ method: 'self_ingest', recoveredAt: '2026-11-27T12:00:01Z' });
+    for (const id of ['e2', 'e3']) {
+      const plain = await get.handler({ event_id: id } as never) as { event: Record<string, unknown> };
+      expect(plain.event.recovery).toBeNull();
+    }
   });
 });
 

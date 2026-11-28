@@ -98,7 +98,7 @@ export const eventTools = [
   },
   {
     name: 'hookbase_get_event',
-    description: 'Get detailed information about a specific event, including the full payload and all delivery attempts.',
+    description: 'Get detailed information about a specific event, including the full payload and all delivery attempts. recovery is {method, recoveredAt} when connected-source recovery got the event here after the provider failed to deliver it (method self_ingest for Stripe, redelivery for GitHub, replay for Paddle), else null.',
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     routes: ['GET /events/:id'],
     inputSchema: z.object({
@@ -124,6 +124,8 @@ export const eventTools = [
           status: e.status,
           deliveryCount: deliveries?.length ?? 0,
           receivedAt: e.receivedAt,
+          // Null also on API versions without connected sources.
+          recovery: e.recovery ? { method: e.recovery.method, recoveredAt: e.recovery.recoveredAt } : null,
           deliveries: deliveries?.map(d => ({
             id: d.id,
             destinationName: d.destinationName,

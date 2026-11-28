@@ -105,15 +105,15 @@ Add it as a remote MCP connector:
 
 The organization is automatically detected from your API key. The result is cached at `~/.config/hookbase/mcp.json` (or `$XDG_CONFIG_HOME/hookbase/mcp.json`) so subsequent boots skip the `/api/auth/me` round-trip. Delete the file to force a refresh.
 
-## Available Tools (151)
+## Available Tools (156)
 
 ### Inbound Webhooks
 
 #### Sources
 Every `source_id` accepts the source's ID or its slug.
 
-- `hookbase_list_sources` - List webhook sources (paged: `page`, `page_size` up to 100, default 20; returns `pagination.total`)
-- `hookbase_get_source` - Get source details (secret masked; includes `awaitingSigningSecret` / `verifiesWithoutSecret` / `catalogProvider`)
+- `hookbase_list_sources` - List webhook sources (paged: `page`, `page_size` up to 100, default 20; returns `pagination.total`; each source carries its `connection` summary or null)
+- `hookbase_get_source` - Get source details (secret masked; includes `awaitingSigningSecret` / `verifiesWithoutSecret` / `catalogProvider` / `connection`)
 - `hookbase_create_source` - Create new source; accepts `signing_secret` (required for vendor-issued and public-key providers) and `verify_token` (WhatsApp/Meta), returns `ingestUrl` and the generated `signingSecret` / `verifyToken` once. Pass `catalog_provider` (the catalog entry id, create-only) for vendors whose catalog `hookbaseProvider` is `custom`
 - `hookbase_update_source` - Update source config, including `signing_secret` (null removes it) and `verify_token` (null regenerates it)
 - `hookbase_delete_source` - Delete a source (cascades to its routes, their deliveries, and every event ever ingested through it)
@@ -123,6 +123,15 @@ Every `source_id` accepts the source's ID or its slug.
 - `hookbase_rotate_source_verify_token` - Generate a new WhatsApp/Meta verify token
 - `hookbase_get_source_pending_verification` - Show a verification token the vendor (Notion) delivered during registration
 - `hookbase_adopt_source_pending_verification` - Make that pending token the source's signing secret
+
+#### Connected Sources
+A source connected to Stripe, GitHub or Paddle has a webhook Hookbase registered at the provider with a provider API key, and recovery gets it the events the provider failed to deliver. Connecting and replacing the provider key take that key, so this server has no tool for them: use the Hookbase dashboard, an SDK, the CLI or Terraform. Errors carry the API's `code`, plus `reason` (refused recovery runs) and `retryAfter` (429s) when it sends them.
+
+- `hookbase_get_source_connection` - The source's provider connection (status, account, events, recovery state, last run); `connection: null` when not connected. The key is never returned
+- `hookbase_list_source_recovery_items` - The recovery ledger, newest first: each missed event's method (`self_ingest` / `redelivery` / `replay`) and status (filter with `status` = `pending` / `recovered` / `gave_up`; `limit` 1-100, default 50)
+- `hookbase_run_source_recovery` - Recover missed events now (Pro and Business). A refusal is a 409 with `code: RECONCILE_REFUSED` and a `reason` (`pending`, `credential_invalid`, `disabled`, `running`, `too_soon`)
+- `hookbase_set_source_recovery` - Turn recovery on or off (`reconcile_enabled` only; turning it on needs Pro or Business)
+- `hookbase_disconnect_source` - Delete the webhook at the provider and the stored key, and stop recovery; returns `remoteRemoved` / `retrying` / `message`. The source keeps its settings and signing secret
 
 #### Provider Catalog
 - `hookbase_list_providers` - List supported webhook providers (filter by category/search) with the `provider` value to use and who issues the secret
@@ -148,7 +157,7 @@ Every `source_id` accepts the source's ID or its slug.
 #### Events
 - `hookbase_list_events` - Query events with filters
 - `hookbase_tail_events` - Poll for events newer than a previous call (lightweight monitoring, not a live stream)
-- `hookbase_get_event` - Get event with payload & deliveries
+- `hookbase_get_event` - Get event with payload & deliveries (`recovery` says when connected-source recovery delivered it)
 - `hookbase_get_event_debug` - Get cURL command to replay event
 
 #### Deliveries
